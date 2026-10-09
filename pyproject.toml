@@ -1,0 +1,15 @@
+[project]
+name = "fileshare"
+version = "0.1.0"
+authors = [
+    { name = "Zi Hong", email = "74897601+sk4rm@users.noreply.github.com" }
+]
+requires-python = ">=3.13"
+dependencies = []
+
+[project.scripts]
+fileshare = "fileshare:main"
+
+[build-system]
+requires = ["uv_build>=0.12.10,<0.13.0"]
+build-backend = "uv_build"
