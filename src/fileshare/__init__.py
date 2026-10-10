@@ -5,26 +5,11 @@ import threading
 import time
 import uuid
 import selectors
+import logging
 from datetime import datetime
-from sys import stderr
+from sys import stdout
 from pathlib import Path
 from enum import StrEnum
-
-
-def logger(who: str):
-    """
-    Curried function for logging that prints date and stuff.
-    """
-
-    def log(*value: object):
-        print(
-            f"[{datetime.now().astimezone():%Y-%m-%d %H:%M:%S}] <{who}>",
-            *value,
-            file=stderr,
-            flush=True,
-        )
-
-    return log
 
 
 DISCOVERY_PORT = 54321
@@ -33,6 +18,44 @@ LENGTH_PREFIX_SIZE = 4
 BROADCAST_INTERVAL = 10.0
 
 peer_table = {}
+
+class ExtraFilter(logging.Filter):
+    def filter(self, item):
+        if hasattr(item, "ip") and hasattr(item, "port"):
+            item.ip = f"({item.ip}"
+            item.port = f":{item.port}) "
+        elif hasattr(item, "ip"):
+            item.ip = f"({item.ip}) "
+        elif hasattr(item, "port"):
+            item.port = f"({item.port}) "
+
+        if not hasattr(item, "ip"):
+            item.ip = ""
+
+        if not hasattr(item, "port"):
+            item.port = ""
+
+        if not hasattr(item, "type"):
+            item.type = ""
+        else:
+            item.type = f" (type: {item.type})"
+
+        return True
+
+log_format = "{%(levelname)s} [%(asctime)s] <%(who)s> %(ip)s%(port)s%(direction)s: %(message)s%(type)s"
+log_date_format = "%Y-%m-%d %H:%M:%S"
+
+logging.basicConfig(
+    level=logging.INFO,
+    format=log_format,
+    datefmt=log_date_format,
+    handlers = [
+        logging.StreamHandler(stdout)
+    ]
+)
+
+root_logger = logging.getLogger()
+root_logger.addFilter(ExtraFilter())
 
 
 class MessageType(StrEnum):
@@ -43,10 +66,15 @@ class MessageType(StrEnum):
     DATA_REQUEST = "data_request"
     DATA = "file_data"
 
+class Direction(StrEnum):
+    SELF = "SELF"
+    SEND = "SEND"
+    RECEIVE = "RECV"
+
 
 def main() -> None:
     # Create main thread logger.
-    log = logger("MAIN")
+    who = "MAIN"
 
     # Command line arguments.
     parser = argparse.ArgumentParser(description="P2P File-sharing")
@@ -65,8 +93,18 @@ def main() -> None:
         help="UDP port number for listening (default: 54321); " \
              "use to prevent clashing ports for processes on same machine",
     )
-    # TODO: --log log.txt
+    parser.add_argument(
+        "--log",
+        "-l",
+        type=str,
+        default="log.txt",
+        help="Name of log file to write to (default: log.txt)"
+    )
     args = parser.parse_args()
+
+    file_handler = logging.FileHandler(args.log, mode="w")
+    file_handler.setFormatter(logging.Formatter(fmt=log_format, datefmt=log_date_format))
+    root_logger.addHandler(file_handler)
 
     # Signal for shutdown.
     # Threads will check this atomically for graceful shutdown.
@@ -92,7 +130,7 @@ def main() -> None:
             time.sleep(0.4)
 
         except KeyboardInterrupt:
-            log("MAIN", "Shutting down servers due to keyboard interrupt")
+            logging.info("Shutting down servers due to keyboard interrupt", extra={"who": who, "direction": Direction.SELF})
 
             shutdown_event.set()
 
@@ -103,7 +141,7 @@ sel = selectors.DefaultSelector()
 
 def discovery_server(discovery_port: int, server_port: int, ack_port: int, shutdown_event: threading.Event):
     # Create logger for discovery server, shorthand "DSCV".
-    log = logger("DSCV")
+    who = "DSCV"
 
     with (
             socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as discovery_server,
@@ -127,7 +165,7 @@ def discovery_server(discovery_port: int, server_port: int, ack_port: int, shutd
         sel.register(discovery_server, selectors.EVENT_READ, data=discovery_port)
         sel.register(ack_server, selectors.EVENT_READ, data=ack_port)
 
-        log(f"Started listening on port {discovery_port}")
+        logging.info(f"Started listening on port {discovery_port}", extra={"who": who, "direction": "SELF"})
 
         next_broadcast_time = time.monotonic()
 
@@ -139,6 +177,7 @@ def discovery_server(discovery_port: int, server_port: int, ack_port: int, shutd
                     json.dumps({"type": MessageType.PEER_REQUEST, "port": ack_port, "id": str(CLIENT_ID)}).encode(),
                     ("255.255.255.255", discovery_port),
                 )
+                logging.info("Broadcast message", extra={"who": who, "direction": Direction.SEND, "type": MessageType.PEER_REQUEST})
                 next_broadcast_time = now + BROADCAST_INTERVAL
 
             # Receive either peer request or ACK.
@@ -154,7 +193,7 @@ def discovery_server(discovery_port: int, server_port: int, ack_port: int, shutd
             except TimeoutError:
                 continue
             except OSError as error:
-                log(error)
+                logging.error(error, extra={"who": who, "direction": "SELF"})
                 continue
 
             # Unmarshall payload.
@@ -162,40 +201,51 @@ def discovery_server(discovery_port: int, server_port: int, ack_port: int, shutd
                 message = json.loads(payload)
 
             except json.JSONDecodeError as error:
-                log(f"Payload is invalid JSON: {error}; {payload!r}")
+                logging.error(f"Payload is invalid JSON: {error}; {payload!r}", 
+                              extra={"who": who, "direction": Direction.RECEIVE, "ip": host})
                 continue
 
             # Switch on message type.
             if not "type" in message:
-                log('Received message is missing the "type" field')
+                logging.error(f"Message has no type", extra={"who": who, "direction": Direction.RECEIVE, "ip": host})
                 continue
 
+            logging.info("Got message", extra={"who": who, "direction": Direction.RECEIVE, "type": message["type"], "ip": host})
+
             if message["type"] == MessageType.PEER_REQUEST:
-                log(f"Received request from peer {host}")
+                if not "port" in message:
+                    logging.error("Request is missing port", extra={"who": who, "direction": Direction.RECEIVE, "ip": host})
+                    continue
+
+                logging.info("Peer request", extra={"who": who, "direction": Direction.RECEIVE, "ip": host, "port": message["port"]})
+
+                if not "id" in message:
+                    logging.error("Request is missing ID", 
+                                  extra={"who": who, "direction": Direction.RECEIVE, "ip": host, "port": message["port"]})
+                    continue
 
                 if message["id"] == str(CLIENT_ID):
-                    log("Ignored request from self")
+                    logging.info("Request ignored (from self)", 
+                                 extra={"who": who, "direction": Direction.RECEIVE, "ip": host, "port": message["port"]})
                     continue
 
                 if message["id"] in peer_table:
-                    log("Ignored request from connected peer")
+                    logging.info("Request ignored (from connected peer)", 
+                                 extra={"who": who, "direction": Direction.RECEIVE, "ip": host, "port": message["port"]})
                     continue
 
                 discovery_server.sendto(
                     json.dumps({"type": MessageType.ACK, "id": str(CLIENT_ID), "port": server_port}).encode(),
                     (host, message["port"]),
                 )
+                logging.info("ACK sent", extra={"who": who, "direction": Direction.SEND, "ip": host, "port": message["port"], "type": MessageType.ACK})
 
             elif message["type"] == MessageType.ACK:
                 if not "port" in message:
-                    log(
-                        f"Received ACK from peer {host} but is missing file server port",
-                    )
+                    logging.error("Request is missing port", extra={"who": who, "direction": Direction.RECEIVE, "ip": host})
                     continue
 
-                log(
-                    f"Received ACK from peer {host}; their file server is listening on {message['port']}",
-                )
+                logging.info(f"ACK; file server at {message['port']}", extra={"who": who, "direction": Direction.RECEIVE, "ip": host})
 
                 thread = threading.Thread(
                     target=connect_to_peer,
@@ -205,10 +255,7 @@ def discovery_server(discovery_port: int, server_port: int, ack_port: int, shutd
                 thread.start()
 
             else:
-                log(
-                    "DSCV",
-                    f"Discarding message from peer {host} with unknown type: {message['type']!r}",
-                )
+                logging.error(f"Type unknown: {message['type']!r}", extra={"who": who, "direction": Direction.RECEIVE, "ip": host})
 
 
 def package_bytes(payload: str):
@@ -218,7 +265,7 @@ def package_bytes(payload: str):
 
 def connect_to_peer(server_address: int, server_port: int, server_id: int, shutdown_event: threading.Event):
     # Create logger for send loop, shorthand "SEND".
-    log = logger("SEND")
+    who = "CNCT"
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client:
         client.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -226,31 +273,34 @@ def connect_to_peer(server_address: int, server_port: int, server_id: int, shutd
 
         peer_table[server_id] = []
 
-        log(f"Connected to peer {server_address}:{server_port}; sending ID")
+        logging.info("Connected to peer", extra={"who": who, "direction": Direction.SELF, "ip": server_address, "port": server_port})
 
         # Send our ID to the server, so they can add us to their peer table.
         payload = json.dumps({"type": MessageType.ID, "id": str(CLIENT_ID)})
         client.sendall(package_bytes(payload))
 
-        # Send our file list to the new connection.
-        file_payload = json.dumps({"type": MessageType.FILE_LIST, "files": get_file_list()})
-        client.sendall(package_bytes(file_payload))
+        logging.info("ID sent", extra={"who": who, "direction": Direction.SEND, "ip": server_address, "port": server_port, "type": MessageType.ID})
 
         # Start the receive loop.
-        receive_from_peer(client, server_id, shutdown_event)
+        receive_from_peer(client, server_address, server_port, server_id, shutdown_event)
 
 def get_file_list():
     shared_path = Path("src/fileshare/shared")
     return [file.name for file in shared_path.iterdir() if file.is_file()]
 
-def broadcast_file_list(sock: socket.socket, shutdown_event: threading.Event, stop_event: threading.Event):
+def broadcast_file_list(sock: socket.socket, peer_host: str, peer_port: int, shutdown_event: threading.Event, stop_event: threading.Event):
+    # Use shorthand "BRDC" for file broadcast loop.
+    who = "BRDC"
     next_broadcast_time = time.monotonic()
 
     while not shutdown_event.is_set() and not stop_event.is_set():
         now = time.monotonic()
         if now >= next_broadcast_time:
-            file_payload = json.dumps({"type": MessageType.FILE_LIST, "files": get_file_list()})
+            file_list = get_file_list()
+            file_payload = json.dumps({"type": MessageType.FILE_LIST, "files": file_list})
             sock.sendall(package_bytes(file_payload))
+            logging.info(f"File list sent: {file_list}", 
+                         extra={"who": who, "direction": Direction.SEND, "ip": peer_host, "port": peer_port, "type": MessageType.FILE_LIST})
 
             next_broadcast_time = now + BROADCAST_INTERVAL
 
@@ -270,9 +320,18 @@ def receive(peer: socket.socket, requested_bytes: int, shutdown_event: threading
 
     return result.decode()
 
-def receive_from_peer(peer: socket.socket, peer_id: str, shutdown_event: threading.Event):
+def get_all_peer_files():
+    result = []
+
+    for peer in peer_table:
+        result += peer_table[peer]
+
+    # Convert to a set first to remove duplicates.
+    return list(set(result))
+
+def receive_from_peer(peer: socket.socket, peer_host: str, peer_port: int, peer_id: str, shutdown_event: threading.Event):
     # Create logger for receive loop, shorthand "RECV".
-    log = logger("RECV")
+    who = "RECV"
     id = peer_id
 
     stop_broadcast = threading.Event()
@@ -280,7 +339,7 @@ def receive_from_peer(peer: socket.socket, peer_id: str, shutdown_event: threadi
     # Spawn file broadcast thread.
     broadcast_thread = threading.Thread(
         target=broadcast_file_list,
-        args=(peer, shutdown_event, stop_broadcast),
+        args=(peer, peer_host, peer_port, shutdown_event, stop_broadcast),
         daemon=True
     )
     broadcast_thread.start()
@@ -289,8 +348,9 @@ def receive_from_peer(peer: socket.socket, peer_id: str, shutdown_event: threadi
         length_bytes = receive(peer, LENGTH_PREFIX_SIZE, shutdown_event)
 
         if not length_bytes:
-            log(f"Peer {peer.getpeername()[0]} left")
+            logging.info(f"Peer left, removing their files: {peer_table[id]}", extra={"who": who, "direction": "SELF", "ip": peer_host, "port": peer_port})
             peer_table.pop(id, None)
+            logging.info(f"Current files known: {get_all_peer_files()}", extra={"who": who, "direction": "SELF"})
             stop_broadcast.set()
             peer.close()
             return
@@ -300,8 +360,9 @@ def receive_from_peer(peer: socket.socket, peer_id: str, shutdown_event: threadi
         payload = receive(peer, length, shutdown_event)
 
         if not payload:
-            log(f"Peer {peer.getpeername()[0]} left")
+            logging.info(f"Peer left, removing their files: {peer_table[id]}", extra={"who": who, "direction": "SELF", "ip": peer_host, "port": peer_port})
             peer_table.pop(id, None)
+            logging.info(f"Current files known: {get_all_peer_files()}", extra={"who": who, "direction": "SELF"})
             stop_broadcast.set()
             peer.close()
             return
@@ -310,34 +371,46 @@ def receive_from_peer(peer: socket.socket, peer_id: str, shutdown_event: threadi
             message = json.loads(payload)
 
         except json.JSONDecodeError as error:
-            log(f"Payload is invalid JSON: {error}; {payload!r}")
+            logging.error(f"Payload is invalid JSON: {error}; {payload!r}", 
+                          extra={"who": who, "direction": Direction.RECEIVE, "ip": peer_host, "port": peer_port})
             continue
 
         if not "type" in message:
-            log(f"Received message with no type")
+            logging.error(f"Message has no type", extra={"who": who, "direction": Direction.RECEIVE, "ip": peer_host, "port": peer_port})
             continue
 
-        log(f"Received message of type {message["type"]} from {peer.getpeername()[0]}")
+        logging.info(f"Got message", 
+                     extra={"who": who, "direction": Direction.RECEIVE, "ip": peer_host, "port": peer_port, "type": message["type"]})
 
         if message["type"] == MessageType.ID:
-            log(f"Registered ID from {peer.getpeername()[0]}")
+            logging.info(f"Registered ID {message['id']}", 
+                         extra={"who": who, "direction": Direction.RECEIVE, "ip": peer_host, "port": peer_port})
             peer_table[message["id"]] = []
             id = message["id"]
         elif not id:
-            log(f"Peer ID from {peer.getpeername()[0]} not yet registered")
+            logging.warning(f"Cannot accept message; ID is not registered", 
+                            extra={"who": who, "direction": Direction.RECEIVE, "ip": peer_host, "port": peer_port})
             continue
+        else:
+            if message["type"] == MessageType.FILE_LIST:
+                if not "files" in message:
+                    logging.error(f"Message has no file list", 
+                                extra={"who": who, "direction": Direction.RECEIVE, "ip": peer_host, "port": peer_port})
+                    continue
 
-        if message["type"] == MessageType.FILE_LIST:
-            if not "files" in message:
-                log(f"No file list from {peer.getpeername()[0]} found")
-
-            peer_table[id] = message["files"]
+                peer_table[id] = message["files"]
+                logging.info(f"File list: {peer_table[id]}", 
+                            extra={"who": who, "direction": Direction.RECEIVE, "ip": peer_host, "port": peer_port})
+                logging.info(f"Current files known: {get_all_peer_files()}", extra={"who": who, "direction": "SELF"})
+            else:
+                logging.error(f"Type unknown: {message['type']!r}", 
+                            extra={"who": who, "direction": Direction.RECEIVE, "ip": peer_host, "port": peer_port})
 
 
 
 def file_server(server_port: int, shutdown_event: threading.Event):
     # Create logger for file server, shorthand "FSRV".
-    log = logger("FSRV")
+    who = "FSRV"
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server:
         server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -345,7 +418,7 @@ def file_server(server_port: int, shutdown_event: threading.Event):
         server.listen()
         server.settimeout(0.4)
 
-        log(f"Started listening on port {server_port}")
+        logging.info(f"Started listening on port {server_port}", extra={"who": who, "direction": "SELF"})
 
         while not shutdown_event.is_set():
             try:
@@ -353,12 +426,12 @@ def file_server(server_port: int, shutdown_event: threading.Event):
             except TimeoutError:
                 continue
 
-            log(f"Peer {peer_host}:{peer_port} connected")
+            logging.info(f"Peer connected", extra={"who": who, "direction": "SELF", "ip": peer_host, "port": peer_port})
 
             # Spawn a recv-loop thread.
             thread = threading.Thread(
                 target=receive_from_peer,
-                args=(peer, "", shutdown_event),
+                args=(peer, peer_host, peer_port, "", shutdown_event),
                 daemon=True
             )
             thread.start()
