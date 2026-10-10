@@ -7,6 +7,7 @@ import uuid
 import selectors
 from datetime import datetime
 from sys import stderr
+from pathlib import Path
 
 
 def logger(who: str):
@@ -27,6 +28,10 @@ def logger(who: str):
 
 DISCOVERY_PORT = 54321
 CLIENT_ID = uuid.uuid4()
+LENGTH_PREFIX_SIZE = 4
+BROADCAST_INTERVAL = 10.0
+
+peer_table = {}
 
 
 def main() -> None:
@@ -104,7 +109,7 @@ def discovery_server(discovery_port: int, server_port: int, ack_port: int, shutd
         # one machine: when the ACK is sent to the host, it is always received 
         # by only one process, preventing other processes from being ACKed.
         # Using a separate socket to listen for the ACK allows the intended
-        # recipieint to get it.
+        # recipient to get it.
         ack_server.bind(("", ack_port))
         ack_server.settimeout(0.4)
         ack_server.setblocking(False)
@@ -124,7 +129,7 @@ def discovery_server(discovery_port: int, server_port: int, ack_port: int, shutd
                     json.dumps({"type": "peer_request", "port": ack_port, "id": str(CLIENT_ID)}).encode(),
                     ("255.255.255.255", discovery_port),
                 )
-                next_broadcast_time = now + 10.0
+                next_broadcast_time = now + BROADCAST_INTERVAL
 
             # Receive either peer request or ACK.
             try:
@@ -162,8 +167,12 @@ def discovery_server(discovery_port: int, server_port: int, ack_port: int, shutd
                     log("Ignored request from self")
                     continue
 
+                if message["id"] in peer_table:
+                    log("Ignored request from connected peer")
+                    continue
+
                 discovery_server.sendto(
-                    json.dumps({"type": "peer_ack", "port": server_port}).encode(),
+                    json.dumps({"type": "peer_ack", "id": str(CLIENT_ID), "port": server_port}).encode(),
                     (host, message["port"]),
                 )
 
@@ -178,13 +187,142 @@ def discovery_server(discovery_port: int, server_port: int, ack_port: int, shutd
                     f"Received ACK from peer {host}; their file server is listening on {message['port']}",
                 )
 
-                # TODO: threading.Thread(target=connect_to_peer).run() and request files.
+                thread = threading.Thread(
+                    target=connect_to_peer,
+                    args=(host, message["port"], message["id"], shutdown_event),
+                    daemon=True
+                )
+                thread.start()
 
             else:
                 log(
                     "DSCV",
                     f"Discarding message from peer {host} with unknown type: {message['type']!r}",
                 )
+
+
+def package_bytes(payload: str):
+    length = f"{len(payload):0{LENGTH_PREFIX_SIZE}x}"
+    return (length + payload).encode()
+
+
+def connect_to_peer(server_address: int, server_port: int, server_id: int, shutdown_event: threading.Event):
+    # Create logger for send loop, shorthand "SEND".
+    log = logger("SEND")
+
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client:
+        client.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        client.connect((server_address, server_port))
+
+        peer_table[server_id] = []
+
+        log(f"Connected to peer {server_address}:{server_port}; sending ID")
+
+        # Send our ID to the server, so they can add us to their peer table.
+        payload = json.dumps({"type": "peer_id", "id": str(CLIENT_ID)})
+        client.sendall(package_bytes(payload))
+
+        # Send our file list to the new connection.
+        file_payload = json.dumps({"type": "file_list", "files": get_file_list()})
+        client.sendall(package_bytes(file_payload))
+
+        # Start the receive loop.
+        receive_from_peer(client, server_id, shutdown_event)
+
+def get_file_list():
+    shared_path = Path("src/fileshare/shared")
+    return [file.name for file in shared_path.iterdir() if file.is_file()]
+
+def broadcast_file_list(sock: socket.socket, shutdown_event: threading.Event, stop_event: threading.Event):
+    next_broadcast_time = time.monotonic()
+
+    while not shutdown_event.is_set() and not stop_event.is_set():
+        now = time.monotonic()
+        if now >= next_broadcast_time:
+            file_payload = json.dumps({"type": "file_list", "files": get_file_list()})
+            sock.sendall(package_bytes(file_payload))
+
+            next_broadcast_time = now + BROADCAST_INTERVAL
+
+
+def receive(peer: socket.socket, requested_bytes: int, shutdown_event: threading.Event):
+    result = b''
+    while len(result) < requested_bytes and not shutdown_event.is_set():
+        try:
+            chunk = peer.recv(requested_bytes - len(result))
+
+            if not chunk:
+                return ""
+
+            result += chunk
+        except ConnectionResetError:
+            return ""
+
+    return result.decode()
+
+def receive_from_peer(peer: socket.socket, peer_id: str, shutdown_event: threading.Event):
+    # Create logger for receive loop, shorthand "RECV".
+    log = logger("RECV")
+    id = peer_id
+
+    stop_broadcast = threading.Event()
+
+    # Spawn file broadcast thread.
+    broadcast_thread = threading.Thread(
+        target=broadcast_file_list,
+        args=(peer, shutdown_event, stop_broadcast),
+        daemon=True
+    )
+    broadcast_thread.start()
+
+    while not shutdown_event.is_set():
+        length_bytes = receive(peer, LENGTH_PREFIX_SIZE, shutdown_event)
+
+        if not length_bytes:
+            log(f"Peer {peer.getpeername()[0]} left")
+            peer_table.pop(id, None)
+            stop_broadcast.set()
+            peer.close()
+            return
+
+        length = int(length_bytes, 16)
+
+        payload = receive(peer, length, shutdown_event)
+
+        if not payload:
+            log(f"Peer {peer.getpeername()[0]} left")
+            peer_table.pop(id, None)
+            stop_broadcast.set()
+            peer.close()
+            return
+        
+        try:
+            message = json.loads(payload)
+
+        except json.JSONDecodeError as error:
+            log(f"Payload is invalid JSON: {error}; {payload!r}")
+            continue
+
+        if not "type" in message:
+            log(f"Received message with no type")
+            continue
+
+        log(f"Received message of type {message["type"]} from {peer.getpeername()[0]}")
+
+        if message["type"] == "peer_id":
+            log(f"Registered ID from {peer.getpeername()[0]}")
+            peer_table[message["id"]] = []
+            id = message["id"]
+        elif not id:
+            log(f"Peer ID from {peer.getpeername()[0]} not yet registered")
+            continue
+
+        if message["type"] == "file_list":
+            if not "files" in message:
+                log(f"No file list from {peer.getpeername()[0]} found")
+
+            peer_table[id] = message["files"]
+
 
 
 def file_server(server_port: int, shutdown_event: threading.Event):
@@ -201,10 +339,16 @@ def file_server(server_port: int, shutdown_event: threading.Event):
 
         while not shutdown_event.is_set():
             try:
-                (_peer, (peer_host, peer_port)) = server.accept()
+                (peer, (peer_host, peer_port)) = server.accept()
             except TimeoutError:
                 continue
 
             log(f"Peer {peer_host}:{peer_port} connected")
 
-            # TODO: Spawn a recv-loop thread for the peer and serve them.
+            # Spawn a recv-loop thread.
+            thread = threading.Thread(
+                target=receive_from_peer,
+                args=(peer, "", shutdown_event),
+                daemon=True
+            )
+            thread.start()

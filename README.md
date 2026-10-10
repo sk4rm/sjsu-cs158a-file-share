@@ -27,6 +27,7 @@ Peer B receives the broadcast and sends an ACK back to Peer A:
 ```json
 {
   "type": "peer_ack",
+  "id": "2eededf8-01ea-4871-91eb-795dcbba37bc",
   "port": 43210 // Example Peer B's file server port.
 }
 ```
@@ -42,14 +43,30 @@ So, Peer B knows enough to send a UDP ACK to `<Peer A's IP address>:54321`.
 
 Peer A receives the ACK and can now initiate a TCP connection to Peer B's file server.
 
-We can detect duplicate ACKs by keeping track of peer IPs.
+We can detect duplicate ACKs by keeping track of peer IDs.
 Ignore duplicate ACKs so we don't recreate new TCP connections.
 
 Note: we could technically remove the need for ACK if Peer B is the one initiating the TCP connection.
 
-### File list
+### Peer ID
+
+After Peer A receives the ACK, it sends its ID to Peer B.
 
 ```json
+{
+  "type": "peer_id",
+  "id": "2eededf8-01ea-4871-91eb-795dcbba37bc"
+}
+```
+
+This allows Peer B to add Peer A's ID to its file table, guaranteeing that Peer B will not accept further requests for connection from Peer A while they are already connected.
+
+### File list
+
+Peer A and Peer B both send each other their file lists periodically. The payload is prefixed with its length, so each peer knows how much they need to read.
+
+```json
+0ABC
 {
   "type": "file_list",
   "files": ["foo.txt", "bar.jpg", "baz.md", "buzz.exe"]
