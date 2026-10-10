@@ -6,13 +6,15 @@ Everything below assumes that all peers have already started their TCP file serv
 
 ### Peer request
 
-The broadcaster doesn't really need to send any information, since it will be the one to initiate the TCP connection later on, so it is the one that needs information from available peers.
+The broadcaster communicates two pieces of information: its unique client ID, generated at launch, and the port number it should receive ACKs at. The client ID allows the broadcaster to identify its own peer requests and ignore them. The port number to receive ACKs at allows several processes on the same machine to communicate with each other: if all processes try to share the same port for receiving ACKs, then only one process will receive all ACKs, preventing the intended recipient from ever receiving the ACK. If all processes are being executed on several machines, the ACK port can be left at `54321`.
 
-Peer A can just broadcast to port `54321` via UDP:
+Peer A broadcasts to port `54321` via UDP:
 
 ```json
 {
-  "type": "peer_request"
+  "type": "peer_request",
+  "id": "2eededf8-01ea-4871-91eb-795dcbba37bc",
+  "port": 54321
 }
 ```
 

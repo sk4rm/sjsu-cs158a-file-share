@@ -3,6 +3,8 @@ import json
 import socket
 import threading
 import time
+import uuid
+import selectors
 from datetime import datetime
 from sys import stderr
 
@@ -24,6 +26,7 @@ def logger(who: str):
 
 
 DISCOVERY_PORT = 54321
+CLIENT_ID = uuid.uuid4()
 
 
 def main() -> None:
@@ -39,6 +42,14 @@ def main() -> None:
         default=54320,
         help="TCP port number for the file server (default: 54320)",
     )
+    parser.add_argument(
+        "--ack-port",
+        "-a",
+        type=int,
+        default=54321,
+        help="UDP port number for listening (default: 54321); " \
+             "use to prevent clashing ports for processes on same machine",
+    )
     # TODO: --log log.txt
     args = parser.parse_args()
 
@@ -49,7 +60,7 @@ def main() -> None:
     threads = [
         threading.Thread(
             target=discovery_server,
-            args=(DISCOVERY_PORT, shutdown_event),
+            args=(DISCOVERY_PORT, args.fileserver_port, args.ack_port, shutdown_event),
         ),
         threading.Thread(
             target=file_server,
@@ -73,15 +84,33 @@ def main() -> None:
             for thread in threads:
                 thread.join()
 
+sel = selectors.DefaultSelector()
 
-def discovery_server(discovery_port: int, shutdown_event: threading.Event):
+def discovery_server(discovery_port: int, server_port: int, ack_port: int, shutdown_event: threading.Event):
     # Create logger for discovery server, shorthand "DSCV".
     log = logger("DSCV")
 
-    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as discovery_server:
+    with (
+            socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as discovery_server,
+            socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as ack_server
+        ):
         discovery_server.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+        discovery_server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         discovery_server.bind(("", discovery_port))
         discovery_server.settimeout(0.4)
+        discovery_server.setblocking(False)
+
+        # A separate ACK socket is needed when running several processes on 
+        # one machine: when the ACK is sent to the host, it is always received 
+        # by only one process, preventing other processes from being ACKed.
+        # Using a separate socket to listen for the ACK allows the intended
+        # recipieint to get it.
+        ack_server.bind(("", ack_port))
+        ack_server.settimeout(0.4)
+        ack_server.setblocking(False)
+
+        sel.register(discovery_server, selectors.EVENT_READ, data=discovery_port)
+        sel.register(ack_server, selectors.EVENT_READ, data=ack_port)
 
         log(f"Started listening on port {discovery_port}")
 
@@ -92,14 +121,21 @@ def discovery_server(discovery_port: int, shutdown_event: threading.Event):
             now = time.monotonic()
             if now >= next_broadcast_time:
                 discovery_server.sendto(
-                    json.dumps({"type": "peer_request"}).encode(),
+                    json.dumps({"type": "peer_request", "port": ack_port, "id": str(CLIENT_ID)}).encode(),
                     ("255.255.255.255", discovery_port),
                 )
                 next_broadcast_time = now + 10.0
 
             # Receive either peer request or ACK.
             try:
-                (payload, (host, _port)) = discovery_server.recvfrom(48)
+                events = sel.select(timeout=0.4)
+
+                if not events:
+                    continue
+
+                for key, _ in events:
+                    sock = key.fileobj
+                    (payload, (host, _port)) = sock.recvfrom(128)
             except TimeoutError:
                 continue
             except OSError as error:
@@ -122,9 +158,13 @@ def discovery_server(discovery_port: int, shutdown_event: threading.Event):
             if message["type"] == "peer_request":
                 log(f"Received request from peer {host}")
 
+                if message["id"] == str(CLIENT_ID):
+                    log("Ignored request from self")
+                    continue
+
                 discovery_server.sendto(
-                    json.dumps({"type": "peer_ack", "port": 54320}).encode(),
-                    (host, discovery_port),
+                    json.dumps({"type": "peer_ack", "port": server_port}).encode(),
+                    (host, message["port"]),
                 )
 
             elif message["type"] == "peer_ack":
