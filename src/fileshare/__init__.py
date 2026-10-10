@@ -8,6 +8,7 @@ import selectors
 from datetime import datetime
 from sys import stderr
 from pathlib import Path
+from enum import StrEnum
 
 
 def logger(who: str):
@@ -32,6 +33,15 @@ LENGTH_PREFIX_SIZE = 4
 BROADCAST_INTERVAL = 10.0
 
 peer_table = {}
+
+
+class MessageType(StrEnum):
+    PEER_REQUEST = "peer_request"
+    ACK = "peer_ack"
+    ID = "peer_id"
+    FILE_LIST = "file_list"
+    DATA_REQUEST = "data_request"
+    DATA = "file_data"
 
 
 def main() -> None:
@@ -126,7 +136,7 @@ def discovery_server(discovery_port: int, server_port: int, ack_port: int, shutd
             now = time.monotonic()
             if now >= next_broadcast_time:
                 discovery_server.sendto(
-                    json.dumps({"type": "peer_request", "port": ack_port, "id": str(CLIENT_ID)}).encode(),
+                    json.dumps({"type": MessageType.PEER_REQUEST, "port": ack_port, "id": str(CLIENT_ID)}).encode(),
                     ("255.255.255.255", discovery_port),
                 )
                 next_broadcast_time = now + BROADCAST_INTERVAL
@@ -160,7 +170,7 @@ def discovery_server(discovery_port: int, server_port: int, ack_port: int, shutd
                 log('Received message is missing the "type" field')
                 continue
 
-            if message["type"] == "peer_request":
+            if message["type"] == MessageType.PEER_REQUEST:
                 log(f"Received request from peer {host}")
 
                 if message["id"] == str(CLIENT_ID):
@@ -172,11 +182,11 @@ def discovery_server(discovery_port: int, server_port: int, ack_port: int, shutd
                     continue
 
                 discovery_server.sendto(
-                    json.dumps({"type": "peer_ack", "id": str(CLIENT_ID), "port": server_port}).encode(),
+                    json.dumps({"type": MessageType.ACK, "id": str(CLIENT_ID), "port": server_port}).encode(),
                     (host, message["port"]),
                 )
 
-            elif message["type"] == "peer_ack":
+            elif message["type"] == MessageType.ACK:
                 if not "port" in message:
                     log(
                         f"Received ACK from peer {host} but is missing file server port",
@@ -219,11 +229,11 @@ def connect_to_peer(server_address: int, server_port: int, server_id: int, shutd
         log(f"Connected to peer {server_address}:{server_port}; sending ID")
 
         # Send our ID to the server, so they can add us to their peer table.
-        payload = json.dumps({"type": "peer_id", "id": str(CLIENT_ID)})
+        payload = json.dumps({"type": MessageType.ID, "id": str(CLIENT_ID)})
         client.sendall(package_bytes(payload))
 
         # Send our file list to the new connection.
-        file_payload = json.dumps({"type": "file_list", "files": get_file_list()})
+        file_payload = json.dumps({"type": MessageType.FILE_LIST, "files": get_file_list()})
         client.sendall(package_bytes(file_payload))
 
         # Start the receive loop.
@@ -239,7 +249,7 @@ def broadcast_file_list(sock: socket.socket, shutdown_event: threading.Event, st
     while not shutdown_event.is_set() and not stop_event.is_set():
         now = time.monotonic()
         if now >= next_broadcast_time:
-            file_payload = json.dumps({"type": "file_list", "files": get_file_list()})
+            file_payload = json.dumps({"type": MessageType.FILE_LIST, "files": get_file_list()})
             sock.sendall(package_bytes(file_payload))
 
             next_broadcast_time = now + BROADCAST_INTERVAL
@@ -309,7 +319,7 @@ def receive_from_peer(peer: socket.socket, peer_id: str, shutdown_event: threadi
 
         log(f"Received message of type {message["type"]} from {peer.getpeername()[0]}")
 
-        if message["type"] == "peer_id":
+        if message["type"] == MessageType.ID:
             log(f"Registered ID from {peer.getpeername()[0]}")
             peer_table[message["id"]] = []
             id = message["id"]
@@ -317,7 +327,7 @@ def receive_from_peer(peer: socket.socket, peer_id: str, shutdown_event: threadi
             log(f"Peer ID from {peer.getpeername()[0]} not yet registered")
             continue
 
-        if message["type"] == "file_list":
+        if message["type"] == MessageType.FILE_LIST:
             if not "files" in message:
                 log(f"No file list from {peer.getpeername()[0]} found")
 
