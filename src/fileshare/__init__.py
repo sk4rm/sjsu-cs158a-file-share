@@ -1,4 +1,5 @@
 import argparse
+import base64
 import json
 import socket
 import threading
@@ -65,6 +66,7 @@ class MessageType(StrEnum):
     FILE_LIST = "file_list"
     DATA_REQUEST = "data_request"
     DATA = "file_data"
+    ERROR = "error"
 
 class Direction(StrEnum):
     SELF = "SELF"
@@ -288,6 +290,26 @@ def get_file_list():
     shared_path = Path("src/fileshare/shared")
     return [file.name for file in shared_path.iterdir() if file.is_file()]
 
+def file_server_send(peer: socket.socket, peer_host: str, peer_port: int, filename: str):
+    # Create logger for serving files, shorthand "SERV".
+    who = "SERV"
+
+    # Only files in the shared folder can be requested.
+    if filename not in get_file_list():
+        payload = json.dumps({"type": MessageType.ERROR, "message": "file not found"})
+        peer.sendall(package_bytes(payload))
+        logging.info(f"File not found: {filename}",
+                     extra={"who": who, "direction": Direction.SEND, "ip": peer_host, "port": peer_port, "type": MessageType.ERROR})
+        return
+
+    # Encode the file as base-64 so it can go inside the JSON message.
+    file_bytes = Path("src/fileshare/shared", filename).read_bytes()
+    data = base64.b64encode(file_bytes).decode()
+    payload = json.dumps({"type": MessageType.DATA, "filename": filename, "data": data})
+    peer.sendall(package_bytes(payload))
+    logging.info(f"File sent: {filename}",
+                 extra={"who": who, "direction": Direction.SEND, "ip": peer_host, "port": peer_port, "type": MessageType.DATA})
+
 def broadcast_file_list(sock: socket.socket, peer_host: str, peer_port: int, shutdown_event: threading.Event, stop_event: threading.Event):
     # Use shorthand "BRDC" for file broadcast loop.
     who = "BRDC"
@@ -402,8 +424,15 @@ def receive_from_peer(peer: socket.socket, peer_host: str, peer_port: int, peer_
                 logging.info(f"File list: {peer_table[id]}", 
                             extra={"who": who, "direction": Direction.RECEIVE, "ip": peer_host, "port": peer_port})
                 logging.info(f"Current files known: {get_all_peer_files()}", extra={"who": who, "direction": "SELF"})
+            elif message["type"] == MessageType.DATA_REQUEST:
+                if not "filename" in message:
+                    logging.error(f"Message has no filename",
+                                extra={"who": who, "direction": Direction.RECEIVE, "ip": peer_host, "port": peer_port})
+                    continue
+
+                file_server_send(peer, peer_host, peer_port, message["filename"])
             else:
-                logging.error(f"Type unknown: {message['type']!r}", 
+                logging.error(f"Type unknown: {message['type']!r}",
                             extra={"who": who, "direction": Direction.RECEIVE, "ip": peer_host, "port": peer_port})
 
 
