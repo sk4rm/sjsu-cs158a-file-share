@@ -19,6 +19,7 @@ LENGTH_PREFIX_SIZE = 4
 BROADCAST_INTERVAL = 10.0
 
 peer_table = {}
+peer_sockets = {}
 
 class ExtraFilter(logging.Filter):
     def filter(self, item):
@@ -274,6 +275,7 @@ def connect_to_peer(server_address: int, server_port: int, server_id: int, shutd
         client.connect((server_address, server_port))
 
         peer_table[server_id] = []
+        peer_sockets[server_id] = client
 
         logging.info("Connected to peer", extra={"who": who, "direction": Direction.SELF, "ip": server_address, "port": server_port})
 
@@ -309,6 +311,27 @@ def file_server_send(peer: socket.socket, peer_host: str, peer_port: int, filena
     peer.sendall(package_bytes(payload))
     logging.info(f"File sent: {filename}",
                  extra={"who": who, "direction": Direction.SEND, "ip": peer_host, "port": peer_port, "type": MessageType.DATA})
+
+def request_file(filename: str):
+    # Create logger for requesting files, shorthand "REQ".
+    who = "REQ"
+
+    # Files are identified by name only, so keep the copy we already have.
+    if filename in get_file_list():
+        logging.info(f"Already have {filename}", extra={"who": who, "direction": Direction.SELF})
+        return
+
+    # Ask the first peer that advertises the file.
+    for id in list(peer_table):
+        if filename in peer_table[id] and id in peer_sockets:
+            (peer_host, peer_port) = peer_sockets[id].getpeername()
+            payload = json.dumps({"type": MessageType.DATA_REQUEST, "filename": filename})
+            peer_sockets[id].sendall(package_bytes(payload))
+            logging.info(f"File requested: {filename}",
+                         extra={"who": who, "direction": Direction.SEND, "ip": peer_host, "port": peer_port, "type": MessageType.DATA_REQUEST})
+            return
+
+    logging.info(f"No peer has {filename}", extra={"who": who, "direction": Direction.SELF})
 
 def broadcast_file_list(sock: socket.socket, peer_host: str, peer_port: int, shutdown_event: threading.Event, stop_event: threading.Event):
     # Use shorthand "BRDC" for file broadcast loop.
@@ -372,6 +395,7 @@ def receive_from_peer(peer: socket.socket, peer_host: str, peer_port: int, peer_
         if not length_bytes:
             logging.info(f"Peer left, removing their files: {peer_table[id]}", extra={"who": who, "direction": "SELF", "ip": peer_host, "port": peer_port})
             peer_table.pop(id, None)
+            peer_sockets.pop(id, None)
             logging.info(f"Current files known: {get_all_peer_files()}", extra={"who": who, "direction": "SELF"})
             stop_broadcast.set()
             peer.close()
@@ -384,6 +408,7 @@ def receive_from_peer(peer: socket.socket, peer_host: str, peer_port: int, peer_
         if not payload:
             logging.info(f"Peer left, removing their files: {peer_table[id]}", extra={"who": who, "direction": "SELF", "ip": peer_host, "port": peer_port})
             peer_table.pop(id, None)
+            peer_sockets.pop(id, None)
             logging.info(f"Current files known: {get_all_peer_files()}", extra={"who": who, "direction": "SELF"})
             stop_broadcast.set()
             peer.close()
@@ -408,6 +433,7 @@ def receive_from_peer(peer: socket.socket, peer_host: str, peer_port: int, peer_
             logging.info(f"Registered ID {message['id']}", 
                          extra={"who": who, "direction": Direction.RECEIVE, "ip": peer_host, "port": peer_port})
             peer_table[message["id"]] = []
+            peer_sockets[message["id"]] = peer
             id = message["id"]
         elif not id:
             logging.warning(f"Cannot accept message; ID is not registered", 
@@ -431,6 +457,27 @@ def receive_from_peer(peer: socket.socket, peer_host: str, peer_port: int, peer_
                     continue
 
                 file_server_send(peer, peer_host, peer_port, message["filename"])
+            elif message["type"] == MessageType.DATA:
+                if not "filename" in message or not "data" in message:
+                    logging.error(f"Message has no filename or data",
+                                extra={"who": who, "direction": Direction.RECEIVE, "ip": peer_host, "port": peer_port})
+                    continue
+
+                # Keep only the file name, so a peer cannot write outside the folders.
+                filename = Path(message["filename"]).name
+                file_bytes = base64.b64decode(message["data"])
+
+                # Write to downloads first, and copy to shared only once the file is complete.
+                downloads_file = Path("src/fileshare/downloads", filename)
+                downloads_file.parent.mkdir(exist_ok=True)
+                downloads_file.write_bytes(file_bytes)
+                Path("src/fileshare/shared", filename).write_bytes(downloads_file.read_bytes())
+
+                logging.info(f"File saved: {filename}",
+                            extra={"who": who, "direction": Direction.RECEIVE, "ip": peer_host, "port": peer_port, "type": MessageType.DATA})
+            elif message["type"] == MessageType.ERROR:
+                logging.error(f"Peer error: {message.get('message')}",
+                            extra={"who": who, "direction": Direction.RECEIVE, "ip": peer_host, "port": peer_port})
             else:
                 logging.error(f"Type unknown: {message['type']!r}",
                             extra={"who": who, "direction": Direction.RECEIVE, "ip": peer_host, "port": peer_port})
