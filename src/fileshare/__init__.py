@@ -161,6 +161,7 @@ def discovery_server(discovery_port: int, server_port: int, ack_port: int, shutd
         # by only one process, preventing other processes from being ACKed.
         # Using a separate socket to listen for the ACK allows the intended
         # recipient to get it.
+        ack_server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         ack_server.bind(("", ack_port))
         ack_server.settimeout(0.4)
         ack_server.setblocking(False)
