@@ -383,7 +383,13 @@ def broadcast_file_list(sock: socket.socket, peer_host: str, peer_port: int, shu
         if now >= next_broadcast_time:
             file_list = get_file_list()
             file_payload = json.dumps({"type": MessageType.FILE_LIST, "files": file_list})
-            sock.sendall(package_bytes(file_payload))
+            try:
+                sock.sendall(package_bytes(file_payload))
+            except OSError as error:
+                if not stop_event.is_set():
+                    logging.error(f"File list send failed: {error}",
+                                  extra={"who": who, "direction": Direction.SEND, "ip": peer_host, "port": peer_port})
+                return
             logging.info(f"File list sent: {file_list}", 
                          extra={"who": who, "direction": Direction.SEND, "ip": peer_host, "port": peer_port, "type": MessageType.FILE_LIST})
 
@@ -403,7 +409,7 @@ def receive(peer: socket.socket, requested_bytes: int, shutdown_event: threading
         except ConnectionResetError:
             return b""
 
-    return result
+    return result if len(result) == requested_bytes else b""
 
 def get_all_peer_files():
     result = []
@@ -429,98 +435,111 @@ def receive_from_peer(peer: socket.socket, peer_host: str, peer_port: int, peer_
     )
     broadcast_thread.start()
 
-    while not shutdown_event.is_set():
-        length_bytes = receive(peer, LENGTH_PREFIX_SIZE, shutdown_event)
+    try:
+        while not shutdown_event.is_set():
+            length_bytes = receive(peer, LENGTH_PREFIX_SIZE, shutdown_event)
 
-        if not length_bytes:
-            logging.info(f"Peer left, removing their files: {peer_table[id]}", extra={"who": who, "direction": "SELF", "ip": peer_host, "port": peer_port})
-            peer_table.pop(id, None)
-            peer_sockets.pop(id, None)
-            logging.info(f"Current files known: {get_all_peer_files()}", extra={"who": who, "direction": "SELF"})
-            stop_broadcast.set()
-            peer.close()
-            return
+            if not length_bytes:
+                break
 
-        length = int.from_bytes(length_bytes, byteorder="big")
+            length = int.from_bytes(length_bytes, byteorder="big")
+            if length == 0:
+                raise ValueError("Message length must be positive")
 
-        payload = receive(peer, length, shutdown_event)
+            payload = receive(peer, length, shutdown_event)
 
-        if not payload:
-            logging.info(f"Peer left, removing their files: {peer_table[id]}", extra={"who": who, "direction": "SELF", "ip": peer_host, "port": peer_port})
-            peer_table.pop(id, None)
-            peer_sockets.pop(id, None)
-            logging.info(f"Current files known: {get_all_peer_files()}", extra={"who": who, "direction": "SELF"})
-            stop_broadcast.set()
-            peer.close()
-            return
-        
-        try:
-            message = json.loads(payload)
+            if not payload:
+                break
 
-        except json.JSONDecodeError as error:
-            logging.error(f"Payload is invalid JSON: {error}; {payload!r}", 
-                          extra={"who": who, "direction": Direction.RECEIVE, "ip": peer_host, "port": peer_port})
-            continue
+            try:
+                message = json.loads(payload)
 
-        if not "type" in message:
-            logging.error(f"Message has no type", extra={"who": who, "direction": Direction.RECEIVE, "ip": peer_host, "port": peer_port})
-            continue
+            except json.JSONDecodeError as error:
+                logging.error(f"Payload is invalid JSON: {error}; {payload!r}",
+                              extra={"who": who, "direction": Direction.RECEIVE, "ip": peer_host, "port": peer_port})
+                continue
 
-        logging.info(f"Got message", 
-                     extra={"who": who, "direction": Direction.RECEIVE, "ip": peer_host, "port": peer_port, "type": message["type"]})
+            if not isinstance(message, dict):
+                raise ValueError("Message must be a JSON object")
 
-        if message["type"] == MessageType.ID:
-            logging.info(f"Registered ID {message['id']}", 
-                         extra={"who": who, "direction": Direction.RECEIVE, "ip": peer_host, "port": peer_port})
-            peer_table[message["id"]] = []
-            peer_sockets[message["id"]] = peer
-            id = message["id"]
-        elif not id:
-            logging.warning(f"Cannot accept message; ID is not registered", 
-                            extra={"who": who, "direction": Direction.RECEIVE, "ip": peer_host, "port": peer_port})
-            continue
-        else:
-            if message["type"] == MessageType.FILE_LIST:
-                if not "files" in message:
-                    logging.error(f"Message has no file list", 
+            if not "type" in message:
+                logging.error(f"Message has no type", extra={"who": who, "direction": Direction.RECEIVE, "ip": peer_host, "port": peer_port})
+                continue
+
+            logging.info(f"Got message",
+                         extra={"who": who, "direction": Direction.RECEIVE, "ip": peer_host, "port": peer_port, "type": message["type"]})
+
+            if message["type"] == MessageType.ID:
+                if id or not isinstance(message.get("id"), str) or not message["id"]:
+                    raise ValueError("Missing, invalid, or repeated peer ID")
+                logging.info(f"Registered ID {message['id']}",
+                             extra={"who": who, "direction": Direction.RECEIVE, "ip": peer_host, "port": peer_port})
+                peer_table[message["id"]] = []
+                peer_sockets[message["id"]] = peer
+                id = message["id"]
+            elif not id:
+                logging.warning(f"Cannot accept message; ID is not registered",
                                 extra={"who": who, "direction": Direction.RECEIVE, "ip": peer_host, "port": peer_port})
-                    continue
-
-                peer_table[id] = message["files"]
-                logging.info(f"File list: {peer_table[id]}", 
-                            extra={"who": who, "direction": Direction.RECEIVE, "ip": peer_host, "port": peer_port})
-                logging.info(f"Current files known: {get_all_peer_files()}", extra={"who": who, "direction": "SELF"})
-            elif message["type"] == MessageType.DATA_REQUEST:
-                if not "filename" in message:
-                    logging.error(f"Message has no filename",
-                                extra={"who": who, "direction": Direction.RECEIVE, "ip": peer_host, "port": peer_port})
-                    continue
-
-                file_server_send(peer, peer_host, peer_port, message["filename"])
-            elif message["type"] == MessageType.DATA:
-                if not "filename" in message or not "data" in message:
-                    logging.error(f"Message has no filename or data",
-                                extra={"who": who, "direction": Direction.RECEIVE, "ip": peer_host, "port": peer_port})
-                    continue
-
-                # Keep only the file name, so a peer cannot write outside the folders.
-                filename = Path(message["filename"]).name
-                file_bytes = base64.b64decode(message["data"])
-
-                # Write to downloads first, and copy to shared only once the file is complete.
-                downloads_file = Path(f"src/fileshare/{DOWNLOADS_FOLDER_NAME}", filename)
-                downloads_file.parent.mkdir(exist_ok=True)
-                downloads_file.write_bytes(file_bytes)
-                Path(f"src/fileshare/{SHARED_FOLDER_NAME}", filename).write_bytes(downloads_file.read_bytes())
-
-                logging.info(f"File saved: {filename}",
-                            extra={"who": who, "direction": Direction.RECEIVE, "ip": peer_host, "port": peer_port, "type": MessageType.DATA})
-            elif message["type"] == MessageType.ERROR:
-                logging.error(f"Peer error: {message.get('message')}",
-                            extra={"who": who, "direction": Direction.RECEIVE, "ip": peer_host, "port": peer_port})
+                continue
             else:
-                logging.error(f"Type unknown: {message['type']!r}",
-                            extra={"who": who, "direction": Direction.RECEIVE, "ip": peer_host, "port": peer_port})
+                if message["type"] == MessageType.FILE_LIST:
+                    if not "files" in message:
+                        logging.error(f"Message has no file list",
+                                    extra={"who": who, "direction": Direction.RECEIVE, "ip": peer_host, "port": peer_port})
+                        continue
+
+                    if not isinstance(message["files"], list) or not all(isinstance(name, str) for name in message["files"]):
+                        raise ValueError("File list must contain filenames")
+                    peer_table[id] = message["files"]
+                    logging.info(f"File list: {peer_table[id]}",
+                                extra={"who": who, "direction": Direction.RECEIVE, "ip": peer_host, "port": peer_port})
+                    logging.info(f"Current files known: {get_all_peer_files()}", extra={"who": who, "direction": "SELF"})
+                elif message["type"] == MessageType.DATA_REQUEST:
+                    if not "filename" in message:
+                        logging.error(f"Message has no filename",
+                                    extra={"who": who, "direction": Direction.RECEIVE, "ip": peer_host, "port": peer_port})
+                        continue
+
+                    file_server_send(peer, peer_host, peer_port, message["filename"])
+                elif message["type"] == MessageType.DATA:
+                    if not "filename" in message or not "data" in message:
+                        logging.error(f"Message has no filename or data",
+                                    extra={"who": who, "direction": Direction.RECEIVE, "ip": peer_host, "port": peer_port})
+                        continue
+
+                    # Keep only the file name, so a peer cannot write outside the folders.
+                    filename = Path(message["filename"]).name
+                    file_bytes = base64.b64decode(message["data"], validate=True)
+
+                    # Write to downloads first, and copy to shared only once the file is complete.
+                    downloads_file = Path(f"src/fileshare/{DOWNLOADS_FOLDER_NAME}", filename)
+                    downloads_file.parent.mkdir(exist_ok=True)
+                    downloads_file.write_bytes(file_bytes)
+                    Path(f"src/fileshare/{SHARED_FOLDER_NAME}", filename).write_bytes(downloads_file.read_bytes())
+
+                    logging.info(f"File saved: {filename}",
+                                extra={"who": who, "direction": Direction.RECEIVE, "ip": peer_host, "port": peer_port, "type": MessageType.DATA})
+                elif message["type"] == MessageType.ERROR:
+                    logging.error(f"Peer error: {message.get('message')}",
+                                extra={"who": who, "direction": Direction.RECEIVE, "ip": peer_host, "port": peer_port})
+                else:
+                    logging.error(f"Type unknown: {message['type']!r}",
+                                extra={"who": who, "direction": Direction.RECEIVE, "ip": peer_host, "port": peer_port})
+    except (OSError, ValueError, TypeError, KeyError) as error:
+        logging.error(f"Peer receive failed: {error}",
+                      extra={"who": who, "direction": Direction.RECEIVE, "ip": peer_host, "port": peer_port})
+    finally:
+        stop_broadcast.set()
+        try:
+            # Only remove the entry if this socket still owns it.
+            if peer_sockets.get(id) is peer:
+                logging.info(f"Peer left, removing their files: {peer_table.get(id, [])}",
+                             extra={"who": who, "direction": Direction.SELF, "ip": peer_host, "port": peer_port})
+                peer_table.pop(id, None)
+                peer_sockets.pop(id, None)
+                logging.info(f"Current files known: {get_all_peer_files()}", extra={"who": who, "direction": Direction.SELF})
+        finally:
+            peer.close()
 
 
 
