@@ -23,6 +23,9 @@ DOWNLOADS_FOLDER_NAME = "downloads"
 
 peer_table = {}
 peer_sockets = {}
+connection_lock = threading.RLock()
+connecting_peers = set()
+peer_initiators = {}
 
 class ExtraFilter(logging.Filter):
     def filter(self, item):
@@ -286,6 +289,10 @@ def discovery_server(discovery_port: int, server_port: int, ack_port: int, shutd
                     logging.error("Request is missing port", extra={"who": who, "direction": Direction.RECEIVE, "ip": host})
                     continue
 
+                if not isinstance(message.get("id"), str) or not message["id"]:
+                    logging.error("ACK is missing a valid ID", extra={"who": who, "direction": Direction.RECEIVE, "ip": host})
+                    continue
+
                 logging.info(f"ACK; file server at {message['port']}", extra={"who": who, "direction": Direction.RECEIVE, "ip": host})
 
                 thread = threading.Thread(
@@ -306,27 +313,59 @@ def package_bytes(payload: str):
     return length + payload
 
 
+def register_peer(peer: socket.socket, peer_id: str, initiator_id: str):
+    with connection_lock:
+        if peer_id == str(CLIENT_ID):
+            return False
+        previous = peer_sockets.get(peer_id)
+        # Crossed startup connections must choose the same socket at both ends.
+        # Keep the connection initiated by the smaller UUID; reject repeat dials.
+        if previous is not None and peer_initiators.get(peer_id, "") <= initiator_id:
+            return False
+        peer_table[peer_id] = []
+        peer_sockets[peer_id] = peer
+        peer_initiators[peer_id] = initiator_id
+
+    if previous is not None:
+        try:
+            previous.shutdown(socket.SHUT_RDWR)
+        except OSError:
+            pass
+        previous.close()
+    return True
+
+
 def connect_to_peer(server_address: int, server_port: int, server_id: int, shutdown_event: threading.Event):
     # Create logger for send loop, shorthand "SEND".
     who = "CNCT"
 
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client:
-        client.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        client.connect((server_address, server_port))
+    with connection_lock:
+        if server_id == str(CLIENT_ID) or server_id in peer_sockets or server_id in connecting_peers:
+            return
+        connecting_peers.add(server_id)
 
-        peer_table[server_id] = []
-        peer_sockets[server_id] = client
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client:
+            client.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            client.connect((server_address, server_port))
 
-        logging.info("Connected to peer", extra={"who": who, "direction": Direction.SELF, "ip": server_address, "port": server_port})
+            # Send our ID to the server, so they can add us to their peer table.
+            payload = json.dumps({"type": MessageType.ID, "id": str(CLIENT_ID)})
+            client.sendall(package_bytes(payload))
 
-        # Send our ID to the server, so they can add us to their peer table.
-        payload = json.dumps({"type": MessageType.ID, "id": str(CLIENT_ID)})
-        client.sendall(package_bytes(payload))
+            logging.info("ID sent", extra={"who": who, "direction": Direction.SEND, "ip": server_address, "port": server_port, "type": MessageType.ID})
 
-        logging.info("ID sent", extra={"who": who, "direction": Direction.SEND, "ip": server_address, "port": server_port, "type": MessageType.ID})
+            if not register_peer(client, server_id, str(CLIENT_ID)):
+                return
+            logging.info("Connected to peer", extra={"who": who, "direction": Direction.SELF, "ip": server_address, "port": server_port})
 
-        # Start the receive loop.
-        receive_from_peer(client, server_address, server_port, server_id, shutdown_event)
+            # Start the receive loop.
+            receive_from_peer(client, server_address, server_port, server_id, shutdown_event)
+    except OSError as error:
+        logging.error(f"Connection failed: {error}", extra={"who": who, "direction": Direction.SELF, "ip": server_address, "port": server_port})
+    finally:
+        with connection_lock:
+            connecting_peers.discard(server_id)
 
 def get_file_list():
     shared_path = Path(f"src/fileshare/{SHARED_FOLDER_NAME}")
@@ -414,8 +453,9 @@ def receive(peer: socket.socket, requested_bytes: int, shutdown_event: threading
 def get_all_peer_files():
     result = []
 
-    for peer in peer_table:
-        result += peer_table[peer]
+    with connection_lock:
+        for peer in peer_table:
+            result += peer_table[peer]
 
     # Convert to a set first to remove duplicates.
     return list(set(result))
@@ -472,11 +512,12 @@ def receive_from_peer(peer: socket.socket, peer_host: str, peer_port: int, peer_
             if message["type"] == MessageType.ID:
                 if id or not isinstance(message.get("id"), str) or not message["id"]:
                     raise ValueError("Missing, invalid, or repeated peer ID")
+                id = message["id"]
+                if not register_peer(peer, id, id):
+                    logging.info("Duplicate connection ignored", extra={"who": who, "direction": Direction.SELF, "ip": peer_host, "port": peer_port})
+                    break
                 logging.info(f"Registered ID {message['id']}",
                              extra={"who": who, "direction": Direction.RECEIVE, "ip": peer_host, "port": peer_port})
-                peer_table[message["id"]] = []
-                peer_sockets[message["id"]] = peer
-                id = message["id"]
             elif not id:
                 logging.warning(f"Cannot accept message; ID is not registered",
                                 extra={"who": who, "direction": Direction.RECEIVE, "ip": peer_host, "port": peer_port})
@@ -490,7 +531,10 @@ def receive_from_peer(peer: socket.socket, peer_host: str, peer_port: int, peer_
 
                     if not isinstance(message["files"], list) or not all(isinstance(name, str) for name in message["files"]):
                         raise ValueError("File list must contain filenames")
-                    peer_table[id] = message["files"]
+                    with connection_lock:
+                        if peer_sockets.get(id) is not peer:
+                            break
+                        peer_table[id] = message["files"]
                     logging.info(f"File list: {peer_table[id]}",
                                 extra={"who": who, "direction": Direction.RECEIVE, "ip": peer_host, "port": peer_port})
                     logging.info(f"Current files known: {get_all_peer_files()}", extra={"who": who, "direction": "SELF"})
@@ -532,12 +576,14 @@ def receive_from_peer(peer: socket.socket, peer_host: str, peer_port: int, peer_
         stop_broadcast.set()
         try:
             # Only remove the entry if this socket still owns it.
-            if peer_sockets.get(id) is peer:
-                logging.info(f"Peer left, removing their files: {peer_table.get(id, [])}",
-                             extra={"who": who, "direction": Direction.SELF, "ip": peer_host, "port": peer_port})
-                peer_table.pop(id, None)
-                peer_sockets.pop(id, None)
-                logging.info(f"Current files known: {get_all_peer_files()}", extra={"who": who, "direction": Direction.SELF})
+            with connection_lock:
+                if peer_sockets.get(id) is peer:
+                    logging.info(f"Peer left, removing their files: {peer_table.get(id, [])}",
+                                 extra={"who": who, "direction": Direction.SELF, "ip": peer_host, "port": peer_port})
+                    peer_table.pop(id, None)
+                    peer_sockets.pop(id, None)
+                    peer_initiators.pop(id, None)
+                    logging.info(f"Current files known: {get_all_peer_files()}", extra={"who": who, "direction": Direction.SELF})
         finally:
             peer.close()
 
