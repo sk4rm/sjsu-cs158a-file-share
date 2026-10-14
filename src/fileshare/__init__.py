@@ -18,6 +18,9 @@ CLIENT_ID = uuid.uuid4()
 LENGTH_PREFIX_SIZE = 4
 BROADCAST_INTERVAL = 10.0
 
+SHARED_FOLDER_NAME = "shared"
+DOWNLOADS_FOLDER_NAME = "downloads"
+
 peer_table = {}
 peer_sockets = {}
 
@@ -50,14 +53,12 @@ log_date_format = "%Y-%m-%d %H:%M:%S"
 logging.basicConfig(
     level=logging.INFO,
     format=log_format,
-    datefmt=log_date_format,
-    handlers = [
-        logging.StreamHandler(stdout)
-    ]
+    datefmt=log_date_format
 )
 
 root_logger = logging.getLogger()
 root_logger.addFilter(ExtraFilter())
+root_logger.handlers = []
 
 
 class MessageType(StrEnum):
@@ -103,7 +104,26 @@ def main() -> None:
         default="log.txt",
         help="Name of log file to write to (default: log.txt)"
     )
+    parser.add_argument(
+        "--shared",
+        "-s",
+        type=str,
+        default="shared",
+        help="Name of shared folder (default: shared)"
+    )
+    parser.add_argument(
+        "--downloads",
+        "-d",
+        type=str,
+        default="downloads",
+        help="Name of downloads folder (default: downloads)"
+    )
     args = parser.parse_args()
+
+    global SHARED_FOLDER_NAME
+    SHARED_FOLDER_NAME = args.shared
+    global DOWNLOADS_FOLDER_NAME
+    DOWNLOADS_FOLDER_NAME = args.downloads
 
     file_handler = logging.FileHandler(args.log, mode="w")
     file_handler.setFormatter(logging.Formatter(fmt=log_format, datefmt=log_date_format))
@@ -122,6 +142,10 @@ def main() -> None:
             target=file_server,
             args=(args.fileserver_port, shutdown_event),
         ),
+        threading.Thread(
+            target=input_handler,
+            args=(shutdown_event,),
+        )
     ]
 
     for thread in threads:
@@ -139,6 +163,19 @@ def main() -> None:
 
             for thread in threads:
                 thread.join()
+
+
+def input_handler(shutdown_event: threading.Event):
+    while not shutdown_event.is_set():
+        request = input("Press enter to show list of available files, or enter a file name: ")
+
+        if request == "":
+            print(f"My files: {get_file_list()}")
+            print(f"Peer files: {get_all_peer_files()}\n")
+        else:
+            request_file(request)
+            print("Request attempted\n")
+
 
 sel = selectors.DefaultSelector()
 
@@ -290,7 +327,7 @@ def connect_to_peer(server_address: int, server_port: int, server_id: int, shutd
         receive_from_peer(client, server_address, server_port, server_id, shutdown_event)
 
 def get_file_list():
-    shared_path = Path("src/fileshare/shared")
+    shared_path = Path(f"src/fileshare/{SHARED_FOLDER_NAME}")
     return [file.name for file in shared_path.iterdir() if file.is_file()]
 
 def file_server_send(peer: socket.socket, peer_host: str, peer_port: int, filename: str):
@@ -306,7 +343,7 @@ def file_server_send(peer: socket.socket, peer_host: str, peer_port: int, filena
         return
 
     # Encode the file as base-64 so it can go inside the JSON message.
-    file_bytes = Path("src/fileshare/shared", filename).read_bytes()
+    file_bytes = Path(f"src/fileshare/{SHARED_FOLDER_NAME}", filename).read_bytes()
     data = base64.b64encode(file_bytes).decode()
     payload = json.dumps({"type": MessageType.DATA, "filename": filename, "data": data})
     peer.sendall(package_bytes(payload))
@@ -469,10 +506,10 @@ def receive_from_peer(peer: socket.socket, peer_host: str, peer_port: int, peer_
                 file_bytes = base64.b64decode(message["data"])
 
                 # Write to downloads first, and copy to shared only once the file is complete.
-                downloads_file = Path("src/fileshare/downloads", filename)
+                downloads_file = Path(f"src/fileshare/{DOWNLOADS_FOLDER_NAME}", filename)
                 downloads_file.parent.mkdir(exist_ok=True)
                 downloads_file.write_bytes(file_bytes)
-                Path("src/fileshare/shared", filename).write_bytes(downloads_file.read_bytes())
+                Path(f"src/fileshare/{SHARED_FOLDER_NAME}", filename).write_bytes(downloads_file.read_bytes())
 
                 logging.info(f"File saved: {filename}",
                             extra={"who": who, "direction": Direction.RECEIVE, "ip": peer_host, "port": peer_port, "type": MessageType.DATA})
