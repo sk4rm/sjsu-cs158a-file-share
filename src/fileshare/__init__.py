@@ -6,7 +6,6 @@ import threading
 import time
 import uuid
 import weakref
-import selectors
 import logging
 from datetime import datetime
 from sys import stdout
@@ -95,14 +94,6 @@ def main() -> None:
         help="TCP port number for the file server (default: 54320)",
     )
     parser.add_argument(
-        "--ack-port",
-        "-a",
-        type=int,
-        default=54321,
-        help="UDP port number for listening (default: 54321); " \
-             "use to prevent clashing ports for processes on same machine",
-    )
-    parser.add_argument(
         "--log",
         "-l",
         type=str,
@@ -141,7 +132,7 @@ def main() -> None:
     threads = [
         threading.Thread(
             target=discovery_server,
-            args=(DISCOVERY_PORT, args.fileserver_port, args.ack_port, shutdown_event),
+            args=(DISCOVERY_PORT, args.fileserver_port, shutdown_event),
         ),
         threading.Thread(
             target=file_server,
@@ -184,34 +175,15 @@ def input_handler(shutdown_event: threading.Event):
             print("Request attempted\n")
 
 
-sel = selectors.DefaultSelector()
-
-def discovery_server(discovery_port: int, server_port: int, ack_port: int, shutdown_event: threading.Event):
+def discovery_server(discovery_port: int, server_port: int, shutdown_event: threading.Event):
     # Create logger for discovery server, shorthand "DSCV".
     who = "DSCV"
 
-    with (
-            socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as discovery_server,
-            socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as ack_server
-        ):
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as discovery_server:
         discovery_server.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
         discovery_server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         discovery_server.bind(("", discovery_port))
         discovery_server.settimeout(0.4)
-        discovery_server.setblocking(False)
-
-        # A separate ACK socket is needed when running several processes on 
-        # one machine: when the ACK is sent to the host, it is always received 
-        # by only one process, preventing other processes from being ACKed.
-        # Using a separate socket to listen for the ACK allows the intended
-        # recipient to get it.
-        ack_server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        ack_server.bind(("", ack_port))
-        ack_server.settimeout(0.4)
-        ack_server.setblocking(False)
-
-        sel.register(discovery_server, selectors.EVENT_READ, data=discovery_port)
-        sel.register(ack_server, selectors.EVENT_READ, data=ack_port)
 
         logging.info(f"Started listening on port {discovery_port}", extra={"who": who, "direction": "SELF"})
 
@@ -222,7 +194,7 @@ def discovery_server(discovery_port: int, server_port: int, ack_port: int, shutd
             now = time.monotonic()
             if now >= next_broadcast_time:
                 discovery_server.sendto(
-                    json.dumps({"type": MessageType.PEER_REQUEST, "port": ack_port, "id": str(CLIENT_ID)}).encode(),
+                    json.dumps({"type": MessageType.PEER_REQUEST, "port": discovery_port, "id": str(CLIENT_ID)}).encode(),
                     ("255.255.255.255", discovery_port),
                 )
                 logging.info("Broadcast message", extra={"who": who, "direction": Direction.SEND, "type": MessageType.PEER_REQUEST})
@@ -230,14 +202,7 @@ def discovery_server(discovery_port: int, server_port: int, ack_port: int, shutd
 
             # Receive either peer request or ACK.
             try:
-                events = sel.select(timeout=0.4)
-
-                if not events:
-                    continue
-
-                for key, _ in events:
-                    sock = key.fileobj
-                    (payload, (host, _port)) = sock.recvfrom(128)
+                (payload, (host, _port)) = discovery_server.recvfrom(128)
             except TimeoutError:
                 continue
             except OSError as error:
