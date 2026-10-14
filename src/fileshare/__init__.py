@@ -5,6 +5,7 @@ import socket
 import threading
 import time
 import uuid
+import weakref
 import selectors
 import logging
 from datetime import datetime
@@ -26,6 +27,7 @@ peer_sockets = {}
 connection_lock = threading.RLock()
 connecting_peers = set()
 peer_initiators = {}
+send_locks = weakref.WeakKeyDictionary()
 
 class ExtraFilter(logging.Filter):
     def filter(self, item):
@@ -275,7 +277,9 @@ def discovery_server(discovery_port: int, server_port: int, ack_port: int, shutd
                                  extra={"who": who, "direction": Direction.RECEIVE, "ip": host, "port": message["port"]})
                     continue
 
-                if message["id"] in peer_table:
+                with connection_lock:
+                    connected = message["id"] in peer_table
+                if connected:
                     logging.info("Request ignored (from connected peer)", 
                                  extra={"who": who, "direction": Direction.RECEIVE, "ip": host, "port": message["port"]})
                     continue
@@ -313,6 +317,16 @@ def package_bytes(payload: str):
     # Four-byte unsigned length in network byte order; count bytes, not characters.
     length = len(payload).to_bytes(LENGTH_PREFIX_SIZE, byteorder="big")
     return length + payload
+
+
+def send_payload(peer: socket.socket, payload: str):
+    frame = package_bytes(payload)
+    with connection_lock:
+        # Weak keys release the lock entry when its socket is no longer used.
+        send_lock = send_locks.setdefault(peer, threading.Lock())
+    # Serialize the entire frame without holding the peer-table lock during I/O.
+    with send_lock:
+        peer.sendall(frame)
 
 
 def register_peer(peer: socket.socket, peer_id: str, initiator_id: str):
@@ -353,7 +367,7 @@ def connect_to_peer(server_address: int, server_port: int, server_id: int, shutd
 
             # Send our ID to the server, so they can add us to their peer table.
             payload = json.dumps({"type": MessageType.ID, "id": str(CLIENT_ID)})
-            client.sendall(package_bytes(payload))
+            send_payload(client, payload)
 
             logging.info("ID sent", extra={"who": who, "direction": Direction.SEND, "ip": server_address, "port": server_port, "type": MessageType.ID})
 
@@ -380,7 +394,7 @@ def file_server_send(peer: socket.socket, peer_host: str, peer_port: int, filena
     # Only files in the shared folder can be requested.
     if filename not in get_file_list():
         payload = json.dumps({"type": MessageType.ERROR, "message": "file not found"})
-        peer.sendall(package_bytes(payload))
+        send_payload(peer, payload)
         logging.info(f"File not found: {filename}",
                      extra={"who": who, "direction": Direction.SEND, "ip": peer_host, "port": peer_port, "type": MessageType.ERROR})
         return
@@ -389,7 +403,7 @@ def file_server_send(peer: socket.socket, peer_host: str, peer_port: int, filena
     file_bytes = Path(f"src/fileshare/{SHARED_FOLDER_NAME}", filename).read_bytes()
     data = base64.b64encode(file_bytes).decode()
     payload = json.dumps({"type": MessageType.DATA, "filename": filename, "data": data})
-    peer.sendall(package_bytes(payload))
+    send_payload(peer, payload)
     logging.info(f"File sent: {filename}",
                  extra={"who": who, "direction": Direction.SEND, "ip": peer_host, "port": peer_port, "type": MessageType.DATA})
 
@@ -403,14 +417,19 @@ def request_file(filename: str):
         return
 
     # Ask the first peer that advertises the file.
-    for id in list(peer_table):
-        if filename in peer_table[id] and id in peer_sockets:
-            (peer_host, peer_port) = peer_sockets[id].getpeername()
+    with connection_lock:
+        peers = [peer_sockets[id] for id, files in peer_table.items()
+                 if filename in files and id in peer_sockets]
+    for peer in peers:
+        try:
+            (peer_host, peer_port) = peer.getpeername()
             payload = json.dumps({"type": MessageType.DATA_REQUEST, "filename": filename})
-            peer_sockets[id].sendall(package_bytes(payload))
+            send_payload(peer, payload)
             logging.info(f"File requested: {filename}",
                          extra={"who": who, "direction": Direction.SEND, "ip": peer_host, "port": peer_port, "type": MessageType.DATA_REQUEST})
             return
+        except OSError as error:
+            logging.error(f"Request failed: {error}", extra={"who": who, "direction": Direction.SELF})
 
     logging.info(f"No peer has {filename}", extra={"who": who, "direction": Direction.SELF})
 
@@ -425,7 +444,7 @@ def broadcast_file_list(sock: socket.socket, peer_host: str, peer_port: int, shu
             file_list = get_file_list()
             file_payload = json.dumps({"type": MessageType.FILE_LIST, "files": file_list})
             try:
-                sock.sendall(package_bytes(file_payload))
+                send_payload(sock, file_payload)
             except OSError as error:
                 if not stop_event.is_set():
                     logging.error(f"File list send failed: {error}",
@@ -537,7 +556,7 @@ def receive_from_peer(peer: socket.socket, peer_host: str, peer_port: int, peer_
                         if peer_sockets.get(id) is not peer:
                             break
                         peer_table[id] = message["files"]
-                    logging.info(f"File list: {peer_table[id]}",
+                    logging.info(f"File list: {message['files']}",
                                 extra={"who": who, "direction": Direction.RECEIVE, "ip": peer_host, "port": peer_port})
                     logging.info(f"Current files known: {get_all_peer_files()}", extra={"who": who, "direction": "SELF"})
                 elif message["type"] == MessageType.DATA_REQUEST:
