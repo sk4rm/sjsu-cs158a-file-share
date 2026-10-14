@@ -300,8 +300,10 @@ def discovery_server(discovery_port: int, server_port: int, ack_port: int, shutd
 
 
 def package_bytes(payload: str):
-    length = f"{len(payload):0{LENGTH_PREFIX_SIZE}x}"
-    return (length + payload).encode()
+    payload = payload.encode("utf-8")
+    # Four-byte unsigned length in network byte order; count bytes, not characters.
+    length = len(payload).to_bytes(LENGTH_PREFIX_SIZE, byteorder="big")
+    return length + payload
 
 
 def connect_to_peer(server_address: int, server_port: int, server_id: int, shutdown_event: threading.Event):
@@ -395,13 +397,13 @@ def receive(peer: socket.socket, requested_bytes: int, shutdown_event: threading
             chunk = peer.recv(requested_bytes - len(result))
 
             if not chunk:
-                return ""
+                return b""
 
             result += chunk
         except ConnectionResetError:
-            return ""
+            return b""
 
-    return result.decode()
+    return result
 
 def get_all_peer_files():
     result = []
@@ -439,7 +441,7 @@ def receive_from_peer(peer: socket.socket, peer_host: str, peer_port: int, peer_
             peer.close()
             return
 
-        length = int(length_bytes, 16)
+        length = int.from_bytes(length_bytes, byteorder="big")
 
         payload = receive(peer, length, shutdown_event)
 
