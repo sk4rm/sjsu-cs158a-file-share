@@ -12,10 +12,24 @@ mkdir -p src/fileshare/shared src/fileshare/downloads
 uv run fileshare
 ```
 
+PowerShell:
+
+```powershell
+New-Item -ItemType Directory -Force -Path src/fileshare/shared, src/fileshare/downloads | Out-Null
+uv run fileshare
+```
+
 Without uv:
 
 ```sh
 PYTHONPATH=src python3.13 -c 'import fileshare; fileshare.main()'
+```
+
+PowerShell, with Python 3.13 or newer on `PATH`:
+
+```powershell
+$env:PYTHONPATH = 'src'
+python -c 'import fileshare; fileshare.main()'
 ```
 
 | Option | Default | Usage |
@@ -27,6 +41,13 @@ PYTHONPATH=src python3.13 -c 'import fileshare; fileshare.main()'
 
 ```sh
 mkdir -p src/fileshare/shared2 src/fileshare/downloads2
+uv run fileshare -p 55001 -s shared2 -d downloads2 -l node2-log.txt
+```
+
+PowerShell:
+
+```powershell
+New-Item -ItemType Directory -Force -Path src/fileshare/shared2, src/fileshare/downloads2 | Out-Null
 uv run fileshare -p 55001 -s shared2 -d downloads2 -l node2-log.txt
 ```
 
@@ -45,7 +66,10 @@ uv run fileshare -p 55001 -s shared2 -d downloads2 -l node2-log.txt
 
 ## Run five nodes with Docker
 
-Run these commands in a POSIX shell from the repository root:
+Run the commands for your shell from the repository root. On Windows, use Docker
+Desktop with Linux containers.
+
+POSIX:
 
 ```sh
 docker pull python:3.13-slim
@@ -56,8 +80,23 @@ for i in 1 2 3 4 5; do
 done
 ```
 
-Open five terminals in the repository root. Set `NODE` to a different number
-from 1 through 5 in each terminal, then run:
+PowerShell:
+
+```powershell
+docker pull python:3.13-slim
+docker network create fileshare-demo
+foreach ($i in 1..5) {
+    $shared = ".demo/node$i/src/fileshare/shared"
+    $downloads = ".demo/node$i/src/fileshare/downloads"
+    New-Item -ItemType Directory -Force -Path $shared, $downloads | Out-Null
+    "Shared by node $i" | Set-Content -LiteralPath "$shared/node$i.txt" -Encoding ascii
+}
+```
+
+Open five terminals in the repository root. Choose a different number from 1
+through 5 for `NODE` (POSIX) or `$node` (PowerShell) in each terminal.
+
+POSIX:
 
 ```sh
 NODE=1
@@ -66,6 +105,19 @@ docker run --rm -it --name "fileshare-node$NODE" --network fileshare-demo \
     --mount "type=bind,src=$PWD,dst=/code,readonly" \
     --mount "type=bind,src=$PWD/.demo/node$NODE,dst=/data" \
     -w /data -e PYTHONPATH=/code/src -e PYTHONDONTWRITEBYTECODE=1 \
+    python:3.13-slim python -u -c 'import fileshare; fileshare.main()'
+```
+
+PowerShell:
+
+```powershell
+$node = 1
+$repoRoot = (Get-Location).Path
+$dataPath = (Resolve-Path -LiteralPath ".demo/node$node").Path
+docker run --rm -it --name "fileshare-node$node" --network fileshare-demo `
+    --mount "type=bind,src=$repoRoot,dst=/code,readonly" `
+    --mount "type=bind,src=$dataPath,dst=/data" `
+    -w /data -e PYTHONPATH=/code/src -e PYTHONDONTWRITEBYTECODE=1 `
     python:3.13-slim python -u -c 'import fileshare; fileshare.main()'
 ```
 
@@ -85,11 +137,25 @@ docker run --rm -it --name "fileshare-node$NODE" --network fileshare-demo \
    cmp .demo/node1/src/fileshare/shared/node1.txt .demo/node2/src/fileshare/shared/node1.txt
    ```
 
+   PowerShell; both comparisons should return `True`:
+
+   ```powershell
+   $sourceHash = (Get-FileHash -LiteralPath .demo/node1/src/fileshare/shared/node1.txt -Algorithm SHA256 -ErrorAction Stop).Hash
+   (Get-FileHash -LiteralPath .demo/node2/src/fileshare/downloads/node1.txt -Algorithm SHA256 -ErrorAction Stop).Hash -eq $sourceHash
+   (Get-FileHash -LiteralPath .demo/node2/src/fileshare/shared/node1.txt -Algorithm SHA256 -ErrorAction Stop).Hash -eq $sourceHash
+   ```
+
 3. Leave `node5.txt` undownloaded. Press Ctrl-C in node 5, then press Enter in node 2; check that `node5.txt` disappears.
 4. Restart node 5 with the same command; check that its filename returns.
 5. Stop all nodes with Ctrl-C, then remove the network:
 
    ```sh
+   docker network rm fileshare-demo
+   ```
+
+   PowerShell:
+
+   ```powershell
    docker network rm fileshare-demo
    ```
 
