@@ -148,6 +148,7 @@ def main() -> None:
         threading.Thread(
             target=input_handler,
             args=(shutdown_event,),
+            daemon=True,  # A blocked input() must not prevent shutdown.
         )
     ]
 
@@ -165,7 +166,8 @@ def main() -> None:
             shutdown_event.set()
 
             for thread in threads:
-                thread.join()
+                if not thread.daemon:
+                    thread.join()
 
 
 def input_handler(shutdown_event: threading.Event):
