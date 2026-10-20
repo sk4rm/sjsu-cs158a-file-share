@@ -81,7 +81,6 @@ class Direction(StrEnum):
 
 
 def main() -> None:
-    # Create main thread logger.
     who = "MAIN"
 
     # Command line arguments.
@@ -176,7 +175,6 @@ def input_handler(shutdown_event: threading.Event):
 
 
 def discovery_server(discovery_port: int, server_port: int, shutdown_event: threading.Event):
-    # Create logger for discovery server, shorthand "DSCV".
     who = "DSCV"
 
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as discovery_server:
@@ -317,7 +315,6 @@ def register_peer(peer: socket.socket, peer_id: str, initiator_id: str):
 
 
 def connect_to_peer(server_address: int, server_port: int, server_id: int, shutdown_event: threading.Event):
-    # Create logger for send loop, shorthand "SEND".
     who = "CNCT"
 
     with connection_lock:
@@ -353,7 +350,6 @@ def get_file_list():
     return [file.name for file in shared_path.iterdir() if file.is_file()]
 
 def file_server_send(peer: socket.socket, peer_host: str, peer_port: int, filename: str):
-    # Create logger for serving files, shorthand "SERV".
     who = "SERV"
 
     # Only files in the shared folder can be requested.
@@ -373,7 +369,6 @@ def file_server_send(peer: socket.socket, peer_host: str, peer_port: int, filena
                  extra={"who": who, "direction": Direction.SEND, "ip": peer_host, "port": peer_port, "type": MessageType.DATA})
 
 def request_file(filename: str):
-    # Create logger for requesting files, shorthand "REQ".
     who = "REQ"
 
     # Files are identified by name only, so keep the copy we already have.
@@ -399,7 +394,6 @@ def request_file(filename: str):
     logging.info(f"No peer has {filename}", extra={"who": who, "direction": Direction.SELF})
 
 def broadcast_file_list(sock: socket.socket, peer_host: str, peer_port: int, shutdown_event: threading.Event, stop_event: threading.Event):
-    # Use shorthand "BRDC" for file broadcast loop.
     who = "BRDC"
     next_broadcast_time = time.monotonic()
 
@@ -447,7 +441,6 @@ def get_all_peer_files():
     return list(set(result))
 
 def receive_from_peer(peer: socket.socket, peer_host: str, peer_port: int, peer_id: str, shutdown_event: threading.Event):
-    # Create logger for receive loop, shorthand "RECV".
     who = "RECV"
     id = peer_id
 
@@ -576,7 +569,6 @@ def receive_from_peer(peer: socket.socket, peer_host: str, peer_port: int, peer_
 
 
 def file_server(server_port: int, shutdown_event: threading.Event):
-    # Create logger for file server, shorthand "FSRV".
     who = "FSRV"
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server:
