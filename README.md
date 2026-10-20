@@ -334,3 +334,11 @@ Node 2 requests `node1.txt`. Node 1 has this file and serves it to node 2. Node 
 Node 5 is terminated. Since node 5 left, nodes 1, 2, 3, and 4 can no longer see node 5's file list. Node 3 attempts to request `node5.txt`, but since node 5 is no longer connected, it is unable to obtain the file.
 
 Node 5 is run again. Every node can now see every other node's files. Nodes 3 and 4 are now able to successfully obtain `node5.txt` from node 5.
+
+## Division of work
+
+Zi Hong (`sk4rm`): peer request, peer ACK, documentation
+
+Ellen (`ellm135`): TCP connection, file list exchange, logging
+
+Paul (`marcospaull`): data request, file transfer, file missing message
