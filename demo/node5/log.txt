@@ -1,0 +1,324 @@
+{INFO} [2026-10-19 22:56:51] <DSCV> SELF: Started listening on port 54321
+{INFO} [2026-10-19 22:56:51] <FSRV> SELF: Started listening on port 54320
+{INFO} [2026-10-19 22:56:51] <DSCV> SEND: Broadcast message (type: peer_request)
+{INFO} [2026-10-19 22:56:51] <DSCV> (172.18.0.6) RECV: Got message (type: peer_request)
+{INFO} [2026-10-19 22:56:51] <DSCV> (172.18.0.6:54321) RECV: Peer request
+{INFO} [2026-10-19 22:56:51] <DSCV> (172.18.0.6:54321) RECV: Request ignored (from self)
+{INFO} [2026-10-19 22:56:51] <DSCV> (172.18.0.3) RECV: Got message (type: peer_ack)
+{INFO} [2026-10-19 22:56:51] <DSCV> (172.18.0.3) RECV: ACK; file server at 54320
+{INFO} [2026-10-19 22:56:51] <CNCT> (172.18.0.3:54320) SEND: ID sent (type: peer_id)
+{INFO} [2026-10-19 22:56:51] <CNCT> (172.18.0.3:54320) SELF: Connected to peer
+{INFO} [2026-10-19 22:56:51] <BRDC> (172.18.0.3:54320) SEND: File list sent: ['node5.txt'] (type: file_list)
+{INFO} [2026-10-19 22:56:51] <DSCV> (172.18.0.5) RECV: Got message (type: peer_ack)
+{INFO} [2026-10-19 22:56:51] <DSCV> (172.18.0.5) RECV: ACK; file server at 54320
+{INFO} [2026-10-19 22:56:51] <CNCT> (172.18.0.5:54320) SEND: ID sent (type: peer_id)
+{INFO} [2026-10-19 22:56:51] <CNCT> (172.18.0.5:54320) SELF: Connected to peer
+{INFO} [2026-10-19 22:56:51] <DSCV> (172.18.0.4) RECV: Got message (type: peer_ack)
+{INFO} [2026-10-19 22:56:51] <DSCV> (172.18.0.4) RECV: ACK; file server at 54320
+{INFO} [2026-10-19 22:56:51] <CNCT> (172.18.0.4:54320) SEND: ID sent (type: peer_id)
+{INFO} [2026-10-19 22:56:51] <BRDC> (172.18.0.5:54320) SEND: File list sent: ['node5.txt'] (type: file_list)
+{INFO} [2026-10-19 22:56:51] <CNCT> (172.18.0.4:54320) SELF: Connected to peer
+{INFO} [2026-10-19 22:56:51] <DSCV> (172.18.0.2) RECV: Got message (type: peer_ack)
+{INFO} [2026-10-19 22:56:51] <DSCV> (172.18.0.2) RECV: ACK; file server at 54320
+{INFO} [2026-10-19 22:56:51] <CNCT> (172.18.0.2:54320) SEND: ID sent (type: peer_id)
+{INFO} [2026-10-19 22:56:51] <CNCT> (172.18.0.2:54320) SELF: Connected to peer
+{INFO} [2026-10-19 22:56:51] <RECV> (172.18.0.3:54320) RECV: Got message (type: file_list)
+{INFO} [2026-10-19 22:56:51] <RECV> (172.18.0.3:54320) RECV: File list: ['node2.txt']
+{INFO} [2026-10-19 22:56:51] <RECV> SELF: Current files known: ['node2.txt']
+{INFO} [2026-10-19 22:56:51] <BRDC> (172.18.0.2:54320) SEND: File list sent: ['node5.txt'] (type: file_list)
+{INFO} [2026-10-19 22:56:51] <BRDC> (172.18.0.4:54320) SEND: File list sent: ['node5.txt'] (type: file_list)
+{INFO} [2026-10-19 22:56:51] <RECV> (172.18.0.4:54320) RECV: Got message (type: file_list)
+{INFO} [2026-10-19 22:56:51] <RECV> (172.18.0.4:54320) RECV: File list: ['node3.txt']
+{INFO} [2026-10-19 22:56:51] <RECV> SELF: Current files known: ['node2.txt', 'node3.txt']
+{INFO} [2026-10-19 22:56:52] <RECV> (172.18.0.5:54320) RECV: Got message (type: file_list)
+{INFO} [2026-10-19 22:56:52] <RECV> (172.18.0.5:54320) RECV: File list: ['node4.txt']
+{INFO} [2026-10-19 22:56:52] <RECV> (172.18.0.2:54320) RECV: Got message (type: file_list)
+{INFO} [2026-10-19 22:56:52] <RECV> SELF: Current files known: ['node2.txt', 'node4.txt', 'node3.txt']
+{INFO} [2026-10-19 22:56:52] <RECV> (172.18.0.2:54320) RECV: File list: ['node1.txt']
+{INFO} [2026-10-19 22:56:52] <RECV> SELF: Current files known: ['node1.txt', 'node2.txt', 'node4.txt', 'node3.txt']
+{INFO} [2026-10-19 22:56:50] <DSCV> (172.18.0.4) RECV: Got message (type: peer_request)
+{INFO} [2026-10-19 22:56:50] <DSCV> (172.18.0.4:54321) RECV: Peer request
+{INFO} [2026-10-19 22:56:50] <DSCV> (172.18.0.4:54321) RECV: Request ignored (from connected peer)
+{INFO} [2026-10-19 22:56:56] <DSCV> (172.18.0.3) RECV: Got message (type: peer_request)
+{INFO} [2026-10-19 22:56:56] <DSCV> (172.18.0.3:54321) RECV: Peer request
+{INFO} [2026-10-19 22:56:56] <DSCV> (172.18.0.3:54321) RECV: Request ignored (from connected peer)
+{INFO} [2026-10-19 22:56:59] <DSCV> (172.18.0.5) RECV: Got message (type: peer_request)
+{INFO} [2026-10-19 22:56:59] <DSCV> (172.18.0.5:54321) RECV: Peer request
+{INFO} [2026-10-19 22:56:59] <DSCV> (172.18.0.5:54321) RECV: Request ignored (from connected peer)
+{INFO} [2026-10-19 22:57:01] <DSCV> (172.18.0.2) RECV: Got message (type: peer_request)
+{INFO} [2026-10-19 22:57:01] <DSCV> (172.18.0.2:54321) RECV: Peer request
+{INFO} [2026-10-19 22:57:01] <DSCV> (172.18.0.2:54321) RECV: Request ignored (from connected peer)
+{INFO} [2026-10-19 22:57:01] <BRDC> (172.18.0.3:54320) SEND: File list sent: ['node5.txt'] (type: file_list)
+{INFO} [2026-10-19 22:57:01] <BRDC> (172.18.0.5:54320) SEND: File list sent: ['node5.txt'] (type: file_list)
+{INFO} [2026-10-19 22:57:01] <BRDC> (172.18.0.4:54320) SEND: File list sent: ['node5.txt'] (type: file_list)
+{INFO} [2026-10-19 22:57:01] <RECV> (172.18.0.4:54320) RECV: Got message (type: file_list)
+{INFO} [2026-10-19 22:57:01] <RECV> (172.18.0.4:54320) RECV: File list: ['node3.txt']
+{INFO} [2026-10-19 22:57:01] <RECV> SELF: Current files known: ['node1.txt', 'node2.txt', 'node4.txt', 'node3.txt']
+{INFO} [2026-10-19 22:57:01] <BRDC> (172.18.0.2:54320) SEND: File list sent: ['node5.txt'] (type: file_list)
+{INFO} [2026-10-19 22:57:01] <DSCV> SEND: Broadcast message (type: peer_request)
+{INFO} [2026-10-19 22:57:01] <DSCV> (172.18.0.6) RECV: Got message (type: peer_request)
+{INFO} [2026-10-19 22:57:01] <RECV> (172.18.0.5:54320) RECV: Got message (type: file_list)
+{INFO} [2026-10-19 22:57:01] <DSCV> (172.18.0.6:54321) RECV: Peer request
+{INFO} [2026-10-19 22:57:01] <RECV> (172.18.0.2:54320) RECV: Got message (type: file_list)
+{INFO} [2026-10-19 22:57:01] <RECV> (172.18.0.5:54320) RECV: File list: ['node4.txt']
+{INFO} [2026-10-19 22:57:01] <RECV> (172.18.0.3:54320) RECV: Got message (type: file_list)
+{INFO} [2026-10-19 22:57:01] <DSCV> (172.18.0.6:54321) RECV: Request ignored (from self)
+{INFO} [2026-10-19 22:57:01] <RECV> (172.18.0.2:54320) RECV: File list: ['node1.txt']
+{INFO} [2026-10-19 22:57:01] <RECV> SELF: Current files known: ['node1.txt', 'node2.txt', 'node4.txt', 'node3.txt']
+{INFO} [2026-10-19 22:57:01] <RECV> (172.18.0.3:54320) RECV: File list: ['node2.txt']
+{INFO} [2026-10-19 22:57:01] <RECV> SELF: Current files known: ['node1.txt', 'node2.txt', 'node4.txt', 'node3.txt']
+{INFO} [2026-10-19 22:57:02] <RECV> SELF: Current files known: ['node1.txt', 'node2.txt', 'node4.txt', 'node3.txt']
+{INFO} [2026-10-19 22:57:02] <DSCV> (172.18.0.4) RECV: Got message (type: peer_request)
+{INFO} [2026-10-19 22:57:02] <DSCV> (172.18.0.4:54321) RECV: Peer request
+{INFO} [2026-10-19 22:57:02] <DSCV> (172.18.0.4:54321) RECV: Request ignored (from connected peer)
+{INFO} [2026-10-19 22:57:07] <DSCV> (172.18.0.3) RECV: Got message (type: peer_request)
+{INFO} [2026-10-19 22:57:07] <DSCV> (172.18.0.3:54321) RECV: Peer request
+{INFO} [2026-10-19 22:57:07] <DSCV> (172.18.0.3:54321) RECV: Request ignored (from connected peer)
+{INFO} [2026-10-19 22:57:10] <DSCV> (172.18.0.5) RECV: Got message (type: peer_request)
+{INFO} [2026-10-19 22:57:10] <DSCV> (172.18.0.5:54321) RECV: Peer request
+{INFO} [2026-10-19 22:57:10] <DSCV> (172.18.0.5:54321) RECV: Request ignored (from connected peer)
+{INFO} [2026-10-19 22:57:11] <DSCV> (172.18.0.2) RECV: Got message (type: peer_request)
+{INFO} [2026-10-19 22:57:11] <DSCV> (172.18.0.2:54321) RECV: Peer request
+{INFO} [2026-10-19 22:57:11] <DSCV> (172.18.0.2:54321) RECV: Request ignored (from connected peer)
+{INFO} [2026-10-19 22:57:11] <BRDC> (172.18.0.3:54320) SEND: File list sent: ['node5.txt'] (type: file_list)
+{INFO} [2026-10-19 22:57:11] <BRDC> (172.18.0.5:54320) SEND: File list sent: ['node5.txt'] (type: file_list)
+{INFO} [2026-10-19 22:57:11] <RECV> (172.18.0.4:54320) RECV: Got message (type: file_list)
+{INFO} [2026-10-19 22:57:11] <RECV> (172.18.0.4:54320) RECV: File list: ['node3.txt']
+{INFO} [2026-10-19 22:57:11] <RECV> SELF: Current files known: ['node1.txt', 'node2.txt', 'node4.txt', 'node3.txt']
+{INFO} [2026-10-19 22:57:11] <BRDC> (172.18.0.4:54320) SEND: File list sent: ['node5.txt'] (type: file_list)
+{INFO} [2026-10-19 22:57:11] <RECV> (172.18.0.3:54320) RECV: Got message (type: file_list)
+{INFO} [2026-10-19 22:57:11] <RECV> (172.18.0.3:54320) RECV: File list: ['node1.txt', 'node2.txt']
+{INFO} [2026-10-19 22:57:11] <RECV> SELF: Current files known: ['node1.txt', 'node2.txt', 'node4.txt', 'node3.txt']
+{INFO} [2026-10-19 22:57:11] <RECV> (172.18.0.2:54320) RECV: Got message (type: file_list)
+{INFO} [2026-10-19 22:57:11] <RECV> (172.18.0.2:54320) RECV: File list: ['node1.txt']
+{INFO} [2026-10-19 22:57:11] <RECV> SELF: Current files known: ['node1.txt', 'node2.txt', 'node4.txt', 'node3.txt']
+{INFO} [2026-10-19 22:57:11] <RECV> (172.18.0.5:54320) RECV: Got message (type: file_list)
+{INFO} [2026-10-19 22:57:11] <RECV> (172.18.0.5:54320) RECV: File list: ['node4.txt']
+{INFO} [2026-10-19 22:57:11] <RECV> SELF: Current files known: ['node1.txt', 'node2.txt', 'node4.txt', 'node3.txt']
+{INFO} [2026-10-19 22:57:11] <BRDC> (172.18.0.2:54320) SEND: File list sent: ['node5.txt'] (type: file_list)
+{INFO} [2026-10-19 22:57:11] <DSCV> SEND: Broadcast message (type: peer_request)
+{INFO} [2026-10-19 22:57:11] <DSCV> (172.18.0.6) RECV: Got message (type: peer_request)
+{INFO} [2026-10-19 22:57:11] <DSCV> (172.18.0.6:54321) RECV: Peer request
+{INFO} [2026-10-19 22:57:11] <DSCV> (172.18.0.6:54321) RECV: Request ignored (from self)
+{INFO} [2026-10-19 22:57:12] <DSCV> (172.18.0.4) RECV: Got message (type: peer_request)
+{INFO} [2026-10-19 22:57:12] <DSCV> (172.18.0.4:54321) RECV: Peer request
+{INFO} [2026-10-19 22:57:12] <DSCV> (172.18.0.4:54321) RECV: Request ignored (from connected peer)
+{INFO} [2026-10-19 22:57:17] <DSCV> (172.18.0.3) RECV: Got message (type: peer_request)
+{INFO} [2026-10-19 22:57:17] <DSCV> (172.18.0.3:54321) RECV: Peer request
+{INFO} [2026-10-19 22:57:17] <DSCV> (172.18.0.3:54321) RECV: Request ignored (from connected peer)
+{INFO} [2026-10-19 22:57:20] <DSCV> (172.18.0.5) RECV: Got message (type: peer_request)
+{INFO} [2026-10-19 22:57:20] <DSCV> (172.18.0.5:54321) RECV: Peer request
+{INFO} [2026-10-19 22:57:20] <DSCV> (172.18.0.5:54321) RECV: Request ignored (from connected peer)
+{INFO} [2026-10-19 22:57:21] <DSCV> (172.18.0.2) RECV: Got message (type: peer_request)
+{INFO} [2026-10-19 22:57:21] <DSCV> (172.18.0.2:54321) RECV: Peer request
+{INFO} [2026-10-19 22:57:21] <DSCV> (172.18.0.2:54321) RECV: Request ignored (from connected peer)
+{INFO} [2026-10-19 22:57:21] <BRDC> (172.18.0.3:54320) SEND: File list sent: ['node5.txt'] (type: file_list)
+{INFO} [2026-10-19 22:57:21] <BRDC> (172.18.0.5:54320) SEND: File list sent: ['node5.txt'] (type: file_list)
+{INFO} [2026-10-19 22:57:21] <BRDC> (172.18.0.4:54320) SEND: File list sent: ['node5.txt'] (type: file_list)
+{INFO} [2026-10-19 22:57:21] <RECV> (172.18.0.4:54320) RECV: Got message (type: file_list)
+{INFO} [2026-10-19 22:57:21] <RECV> (172.18.0.4:54320) RECV: File list: ['node3.txt']
+{INFO} [2026-10-19 22:57:21] <RECV> (172.18.0.3:54320) RECV: Got message (type: file_list)
+{INFO} [2026-10-19 22:57:21] <BRDC> (172.18.0.2:54320) SEND: File list sent: ['node5.txt'] (type: file_list)
+{INFO} [2026-10-19 22:57:21] <RECV> SELF: Current files known: ['node1.txt', 'node2.txt', 'node4.txt', 'node3.txt']
+{INFO} [2026-10-19 22:57:21] <RECV> (172.18.0.2:54320) RECV: Got message (type: file_list)
+{INFO} [2026-10-19 22:57:21] <RECV> (172.18.0.3:54320) RECV: File list: ['node1.txt', 'node2.txt']
+{INFO} [2026-10-19 22:57:21] <RECV> (172.18.0.5:54320) RECV: Got message (type: file_list)
+{INFO} [2026-10-19 22:57:21] <DSCV> SEND: Broadcast message (type: peer_request)
+{INFO} [2026-10-19 22:57:21] <RECV> (172.18.0.2:54320) RECV: File list: ['node1.txt']
+{INFO} [2026-10-19 22:57:21] <RECV> SELF: Current files known: ['node1.txt', 'node2.txt', 'node4.txt', 'node3.txt']
+{INFO} [2026-10-19 22:57:22] <RECV> (172.18.0.5:54320) RECV: File list: ['node4.txt']
+{INFO} [2026-10-19 22:57:22] <DSCV> (172.18.0.6) RECV: Got message (type: peer_request)
+{INFO} [2026-10-19 22:57:22] <RECV> SELF: Current files known: ['node1.txt', 'node2.txt', 'node4.txt', 'node3.txt']
+{INFO} [2026-10-19 22:57:22] <RECV> SELF: Current files known: ['node1.txt', 'node2.txt', 'node4.txt', 'node3.txt']
+{INFO} [2026-10-19 22:57:24] <DSCV> (172.18.0.6:54321) RECV: Peer request
+{INFO} [2026-10-19 22:57:24] <DSCV> (172.18.0.6:54321) RECV: Request ignored (from self)
+{INFO} [2026-10-19 22:57:24] <DSCV> (172.18.0.4) RECV: Got message (type: peer_request)
+{INFO} [2026-10-19 22:57:24] <DSCV> (172.18.0.4:54321) RECV: Peer request
+{INFO} [2026-10-19 22:57:24] <DSCV> (172.18.0.4:54321) RECV: Request ignored (from connected peer)
+{INFO} [2026-10-19 22:57:29] <DSCV> (172.18.0.3) RECV: Got message (type: peer_request)
+{INFO} [2026-10-19 22:57:29] <DSCV> (172.18.0.3:54321) RECV: Peer request
+{INFO} [2026-10-19 22:57:29] <DSCV> (172.18.0.3:54321) RECV: Request ignored (from connected peer)
+{INFO} [2026-10-19 22:57:32] <DSCV> (172.18.0.5) RECV: Got message (type: peer_request)
+{INFO} [2026-10-19 22:57:32] <DSCV> (172.18.0.5:54321) RECV: Peer request
+{INFO} [2026-10-19 22:57:32] <DSCV> (172.18.0.5:54321) RECV: Request ignored (from connected peer)
+{INFO} [2026-10-19 22:57:32] <BRDC> (172.18.0.3:54320) SEND: File list sent: ['node5.txt'] (type: file_list)
+{INFO} [2026-10-19 22:57:32] <BRDC> (172.18.0.5:54320) SEND: File list sent: ['node5.txt'] (type: file_list)
+{INFO} [2026-10-19 22:57:32] <DSCV> (172.18.0.2) RECV: Got message (type: peer_request)
+{INFO} [2026-10-19 22:57:32] <DSCV> (172.18.0.2:54321) RECV: Peer request
+{INFO} [2026-10-19 22:57:32] <DSCV> (172.18.0.2:54321) RECV: Request ignored (from connected peer)
+{INFO} [2026-10-19 22:57:33] <RECV> (172.18.0.4:54320) RECV: Got message (type: file_list)
+{INFO} [2026-10-19 22:57:33] <BRDC> (172.18.0.4:54320) SEND: File list sent: ['node5.txt'] (type: file_list)
+{INFO} [2026-10-19 22:57:33] <BRDC> (172.18.0.2:54320) SEND: File list sent: ['node5.txt'] (type: file_list)
+{INFO} [2026-10-19 22:57:33] <RECV> (172.18.0.4:54320) RECV: File list: ['node3.txt']
+{INFO} [2026-10-19 22:57:33] <RECV> (172.18.0.3:54320) RECV: Got message (type: file_list)
+{INFO} [2026-10-19 22:57:33] <RECV> SELF: Current files known: ['node1.txt', 'node2.txt', 'node4.txt', 'node3.txt']
+{INFO} [2026-10-19 22:57:33] <RECV> (172.18.0.2:54320) RECV: Got message (type: file_list)
+{INFO} [2026-10-19 22:57:33] <RECV> (172.18.0.5:54320) RECV: Got message (type: file_list)
+{INFO} [2026-10-19 22:57:33] <RECV> (172.18.0.3:54320) RECV: File list: ['node1.txt', 'node2.txt']
+{INFO} [2026-10-19 22:57:33] <DSCV> SEND: Broadcast message (type: peer_request)
+{INFO} [2026-10-19 22:57:33] <RECV> (172.18.0.2:54320) RECV: File list: ['node1.txt']
+{INFO} [2026-10-19 22:57:33] <RECV> (172.18.0.5:54320) RECV: File list: ['node4.txt']
+{INFO} [2026-10-19 22:57:34] <RECV> SELF: Current files known: ['node1.txt', 'node2.txt', 'node4.txt', 'node3.txt']
+{INFO} [2026-10-19 22:57:33] <DSCV> (172.18.0.6) RECV: Got message (type: peer_request)
+{INFO} [2026-10-19 22:57:33] <RECV> SELF: Current files known: ['node1.txt', 'node2.txt', 'node4.txt', 'node3.txt']
+{INFO} [2026-10-19 22:57:33] <RECV> SELF: Current files known: ['node1.txt', 'node2.txt', 'node4.txt', 'node3.txt']
+{INFO} [2026-10-19 22:57:34] <DSCV> (172.18.0.6:54321) RECV: Peer request
+{INFO} [2026-10-19 22:57:34] <DSCV> (172.18.0.6:54321) RECV: Request ignored (from self)
+{INFO} [2026-10-19 22:57:35] <DSCV> (172.18.0.4) RECV: Got message (type: peer_request)
+{INFO} [2026-10-19 22:57:35] <DSCV> (172.18.0.4:54321) RECV: Peer request
+{INFO} [2026-10-19 22:57:35] <DSCV> (172.18.0.4:54321) RECV: Request ignored (from connected peer)
+{INFO} [2026-10-19 22:57:39] <DSCV> (172.18.0.3) RECV: Got message (type: peer_request)
+{INFO} [2026-10-19 22:57:39] <DSCV> (172.18.0.3:54321) RECV: Peer request
+{INFO} [2026-10-19 22:57:39] <DSCV> (172.18.0.3:54321) RECV: Request ignored (from connected peer)
+{INFO} [2026-10-19 22:57:40] <MAIN> SELF: Shutting down servers due to keyboard interrupt
+
+======================
+Node 5 is restarted
+======================
+
+{INFO} [2026-10-19 22:58:23] <DSCV> SELF: Started listening on port 54321
+{INFO} [2026-10-19 22:58:23] <FSRV> SELF: Started listening on port 54320
+{INFO} [2026-10-19 22:58:23] <DSCV> SEND: Broadcast message (type: peer_request)
+{INFO} [2026-10-19 22:58:23] <DSCV> (172.18.0.6) RECV: Got message (type: peer_request)
+{INFO} [2026-10-19 22:58:23] <DSCV> (172.18.0.6:54321) RECV: Peer request
+{INFO} [2026-10-19 22:58:23] <DSCV> (172.18.0.6:54321) RECV: Request ignored (from self)
+{INFO} [2026-10-19 22:58:23] <DSCV> (172.18.0.2) RECV: Got message (type: peer_ack)
+{INFO} [2026-10-19 22:58:23] <DSCV> (172.18.0.2) RECV: ACK; file server at 54320
+{INFO} [2026-10-19 22:58:23] <CNCT> (172.18.0.2:54320) SEND: ID sent (type: peer_id)
+{INFO} [2026-10-19 22:58:23] <CNCT> (172.18.0.2:54320) SELF: Connected to peer
+{INFO} [2026-10-19 22:58:23] <BRDC> (172.18.0.2:54320) SEND: File list sent: ['node5.txt'] (type: file_list)
+{INFO} [2026-10-19 22:58:23] <DSCV> (172.18.0.5) RECV: Got message (type: peer_ack)
+{INFO} [2026-10-19 22:58:23] <DSCV> (172.18.0.5) RECV: ACK; file server at 54320
+{INFO} [2026-10-19 22:58:23] <DSCV> (172.18.0.4) RECV: Got message (type: peer_ack)
+{INFO} [2026-10-19 22:58:23] <CNCT> (172.18.0.5:54320) SEND: ID sent (type: peer_id)
+{INFO} [2026-10-19 22:58:23] <DSCV> (172.18.0.4) RECV: ACK; file server at 54320
+{INFO} [2026-10-19 22:58:23] <CNCT> (172.18.0.5:54320) SELF: Connected to peer
+{INFO} [2026-10-19 22:58:23] <DSCV> (172.18.0.3) RECV: Got message (type: peer_ack)
+{INFO} [2026-10-19 22:58:23] <CNCT> (172.18.0.4:54320) SEND: ID sent (type: peer_id)
+{INFO} [2026-10-19 22:58:23] <DSCV> (172.18.0.3) RECV: ACK; file server at 54320
+{INFO} [2026-10-19 22:58:23] <CNCT> (172.18.0.4:54320) SELF: Connected to peer
+{INFO} [2026-10-19 22:58:23] <BRDC> (172.18.0.5:54320) SEND: File list sent: ['node5.txt'] (type: file_list)
+{INFO} [2026-10-19 22:58:23] <CNCT> (172.18.0.3:54320) SEND: ID sent (type: peer_id)
+{INFO} [2026-10-19 22:58:23] <CNCT> (172.18.0.3:54320) SELF: Connected to peer
+{INFO} [2026-10-19 22:58:23] <RECV> (172.18.0.4:54320) RECV: Got message (type: file_list)
+{INFO} [2026-10-19 22:58:23] <RECV> (172.18.0.4:54320) RECV: File list: ['node3.txt']
+{INFO} [2026-10-19 22:58:23] <RECV> SELF: Current files known: ['node3.txt']
+{INFO} [2026-10-19 22:58:23] <RECV> (172.18.0.5:54320) RECV: Got message (type: file_list)
+{INFO} [2026-10-19 22:58:23] <RECV> (172.18.0.5:54320) RECV: File list: ['node4.txt']
+{INFO} [2026-10-19 22:58:23] <BRDC> (172.18.0.4:54320) SEND: File list sent: ['node5.txt'] (type: file_list)
+{INFO} [2026-10-19 22:58:23] <RECV> SELF: Current files known: ['node4.txt', 'node3.txt']
+{INFO} [2026-10-19 22:58:23] <BRDC> (172.18.0.3:54320) SEND: File list sent: ['node5.txt'] (type: file_list)
+{INFO} [2026-10-19 22:58:23] <RECV> (172.18.0.2:54320) RECV: Got message (type: file_list)
+{INFO} [2026-10-19 22:58:23] <RECV> (172.18.0.2:54320) RECV: File list: ['node1.txt']
+{INFO} [2026-10-19 22:58:23] <RECV> SELF: Current files known: ['node4.txt', 'node1.txt', 'node3.txt']
+{INFO} [2026-10-19 22:58:23] <RECV> (172.18.0.3:54320) RECV: Got message (type: file_list)
+{INFO} [2026-10-19 22:58:23] <RECV> (172.18.0.3:54320) RECV: File list: ['node1.txt', 'node2.txt']
+{INFO} [2026-10-19 22:58:23] <RECV> SELF: Current files known: ['node4.txt', 'node1.txt', 'node2.txt', 'node3.txt']
+{INFO} [2026-10-19 22:58:25] <DSCV> (172.18.0.5) RECV: Got message (type: peer_request)
+{INFO} [2026-10-19 22:58:25] <DSCV> (172.18.0.5:54321) RECV: Peer request
+{INFO} [2026-10-19 22:58:25] <DSCV> (172.18.0.5:54321) RECV: Request ignored (from connected peer)
+{INFO} [2026-10-19 22:58:28] <DSCV> (172.18.0.2) RECV: Got message (type: peer_request)
+{INFO} [2026-10-19 22:58:28] <DSCV> (172.18.0.2:54321) RECV: Peer request
+{INFO} [2026-10-19 22:58:28] <DSCV> (172.18.0.2:54321) RECV: Request ignored (from connected peer)
+{INFO} [2026-10-19 22:58:30] <DSCV> (172.18.0.4) RECV: Got message (type: peer_request)
+{INFO} [2026-10-19 22:58:30] <DSCV> (172.18.0.4:54321) RECV: Peer request
+{INFO} [2026-10-19 22:58:30] <DSCV> (172.18.0.4:54321) RECV: Request ignored (from connected peer)
+{INFO} [2026-10-19 22:58:34] <DSCV> (172.18.0.3) RECV: Got message (type: peer_request)
+{INFO} [2026-10-19 22:58:34] <DSCV> (172.18.0.3:54321) RECV: Peer request
+{INFO} [2026-10-19 22:58:34] <DSCV> (172.18.0.3:54321) RECV: Request ignored (from connected peer)
+{INFO} [2026-10-19 22:58:34] <DSCV> SEND: Broadcast message (type: peer_request)
+{INFO} [2026-10-19 22:58:34] <DSCV> (172.18.0.6) RECV: Got message (type: peer_request)
+{INFO} [2026-10-19 22:58:34] <DSCV> (172.18.0.6:54321) RECV: Peer request
+{INFO} [2026-10-19 22:58:34] <BRDC> (172.18.0.2:54320) SEND: File list sent: ['node5.txt'] (type: file_list)
+{INFO} [2026-10-19 22:58:34] <DSCV> (172.18.0.6:54321) RECV: Request ignored (from self)
+{INFO} [2026-10-19 22:58:34] <BRDC> (172.18.0.5:54320) SEND: File list sent: ['node5.txt'] (type: file_list)
+{INFO} [2026-10-19 22:58:34] <BRDC> (172.18.0.4:54320) SEND: File list sent: ['node5.txt'] (type: file_list)
+{INFO} [2026-10-19 22:58:34] <RECV> (172.18.0.2:54320) RECV: Got message (type: file_list)
+{INFO} [2026-10-19 22:58:34] <RECV> (172.18.0.2:54320) RECV: File list: ['node1.txt']
+{INFO} [2026-10-19 22:58:34] <RECV> SELF: Current files known: ['node4.txt', 'node1.txt', 'node2.txt', 'node3.txt']
+{INFO} [2026-10-19 22:58:34] <RECV> (172.18.0.5:54320) RECV: Got message (type: file_list)
+{INFO} [2026-10-19 22:58:34] <RECV> (172.18.0.5:54320) RECV: File list: ['node4.txt']
+{INFO} [2026-10-19 22:58:34] <RECV> (172.18.0.4:54320) RECV: Got message (type: file_list)
+{INFO} [2026-10-19 22:58:34] <RECV> SELF: Current files known: ['node4.txt', 'node1.txt', 'node2.txt', 'node3.txt']
+{INFO} [2026-10-19 22:58:34] <BRDC> (172.18.0.3:54320) SEND: File list sent: ['node5.txt'] (type: file_list)
+{INFO} [2026-10-19 22:58:34] <RECV> (172.18.0.4:54320) RECV: File list: ['node3.txt']
+{INFO} [2026-10-19 22:58:35] <RECV> (172.18.0.3:54320) RECV: Got message (type: file_list)
+{INFO} [2026-10-19 22:58:35] <RECV> SELF: Current files known: ['node4.txt', 'node1.txt', 'node2.txt', 'node3.txt']
+{INFO} [2026-10-19 22:58:35] <RECV> (172.18.0.3:54320) RECV: File list: ['node1.txt', 'node2.txt']
+{INFO} [2026-10-19 22:58:35] <RECV> SELF: Current files known: ['node4.txt', 'node1.txt', 'node2.txt', 'node3.txt']
+{INFO} [2026-10-19 22:58:37] <DSCV> (172.18.0.5) RECV: Got message (type: peer_request)
+{INFO} [2026-10-19 22:58:37] <DSCV> (172.18.0.5:54321) RECV: Peer request
+{INFO} [2026-10-19 22:58:37] <DSCV> (172.18.0.5:54321) RECV: Request ignored (from connected peer)
+{INFO} [2026-10-19 22:58:38] <DSCV> (172.18.0.2) RECV: Got message (type: peer_request)
+{INFO} [2026-10-19 22:58:38] <DSCV> (172.18.0.2:54321) RECV: Peer request
+{INFO} [2026-10-19 22:58:38] <DSCV> (172.18.0.2:54321) RECV: Request ignored (from connected peer)
+{INFO} [2026-10-19 22:58:40] <DSCV> (172.18.0.4) RECV: Got message (type: peer_request)
+{INFO} [2026-10-19 22:58:40] <DSCV> (172.18.0.4:54321) RECV: Peer request
+{INFO} [2026-10-19 22:58:40] <DSCV> (172.18.0.4:54321) RECV: Request ignored (from connected peer)
+{INFO} [2026-10-19 22:58:44] <RECV> (172.18.0.4:54320) RECV: Got message (type: data_request)
+{INFO} [2026-10-19 22:58:44] <SERV> (172.18.0.4:54320) SEND: File sent: node5.txt (type: file_data)
+{INFO} [2026-10-19 22:58:44] <DSCV> (172.18.0.3) RECV: Got message (type: peer_request)
+{INFO} [2026-10-19 22:58:44] <BRDC> (172.18.0.2:54320) SEND: File list sent: ['node5.txt'] (type: file_list)
+{INFO} [2026-10-19 22:58:44] <DSCV> (172.18.0.3:54321) RECV: Peer request
+{INFO} [2026-10-19 22:58:44] <BRDC> (172.18.0.5:54320) SEND: File list sent: ['node5.txt'] (type: file_list)
+{INFO} [2026-10-19 22:58:44] <BRDC> (172.18.0.4:54320) SEND: File list sent: ['node5.txt'] (type: file_list)
+{INFO} [2026-10-19 22:58:44] <DSCV> (172.18.0.3:54321) RECV: Request ignored (from connected peer)
+{INFO} [2026-10-19 22:58:44] <RECV> (172.18.0.5:54320) RECV: Got message (type: file_list)
+{INFO} [2026-10-19 22:58:44] <RECV> (172.18.0.2:54320) RECV: Got message (type: file_list)
+{INFO} [2026-10-19 22:58:44] <RECV> (172.18.0.4:54320) RECV: Got message (type: file_list)
+{INFO} [2026-10-19 22:58:44] <BRDC> (172.18.0.3:54320) SEND: File list sent: ['node5.txt'] (type: file_list)
+{INFO} [2026-10-19 22:58:44] <DSCV> SEND: Broadcast message (type: peer_request)
+{INFO} [2026-10-19 22:58:44] <RECV> (172.18.0.5:54320) RECV: File list: ['node4.txt']
+{INFO} [2026-10-19 22:58:44] <RECV> (172.18.0.2:54320) RECV: File list: ['node1.txt']
+{INFO} [2026-10-19 22:58:44] <RECV> (172.18.0.4:54320) RECV: File list: ['node3.txt']
+{INFO} [2026-10-19 22:58:44] <RECV> (172.18.0.3:54320) RECV: Got message (type: file_list)
+{INFO} [2026-10-19 22:58:44] <RECV> SELF: Current files known: ['node4.txt', 'node1.txt', 'node2.txt', 'node3.txt']
+{INFO} [2026-10-19 22:58:45] <RECV> SELF: Current files known: ['node4.txt', 'node1.txt', 'node2.txt', 'node3.txt']
+{INFO} [2026-10-19 22:58:45] <RECV> SELF: Current files known: ['node4.txt', 'node1.txt', 'node2.txt', 'node3.txt']
+{INFO} [2026-10-19 22:58:45] <DSCV> (172.18.0.6) RECV: Got message (type: peer_request)
+{INFO} [2026-10-19 22:58:45] <RECV> (172.18.0.3:54320) RECV: File list: ['node1.txt', 'node2.txt']
+{INFO} [2026-10-19 22:58:45] <DSCV> (172.18.0.6:54321) RECV: Peer request
+{INFO} [2026-10-19 22:58:45] <RECV> SELF: Current files known: ['node4.txt', 'node1.txt', 'node2.txt', 'node3.txt']
+{INFO} [2026-10-19 22:58:46] <DSCV> (172.18.0.6:54321) RECV: Request ignored (from self)
+{INFO} [2026-10-19 22:58:47] <DSCV> (172.18.0.5) RECV: Got message (type: peer_request)
+{INFO} [2026-10-19 22:58:47] <DSCV> (172.18.0.5:54321) RECV: Peer request
+{INFO} [2026-10-19 22:58:47] <DSCV> (172.18.0.5:54321) RECV: Request ignored (from connected peer)
+{INFO} [2026-10-19 22:58:48] <DSCV> (172.18.0.2) RECV: Got message (type: peer_request)
+{INFO} [2026-10-19 22:58:48] <DSCV> (172.18.0.2:54321) RECV: Peer request
+{INFO} [2026-10-19 22:58:48] <DSCV> (172.18.0.2:54321) RECV: Request ignored (from connected peer)
+{INFO} [2026-10-19 22:58:50] <DSCV> (172.18.0.4) RECV: Got message (type: peer_request)
+{INFO} [2026-10-19 22:58:50] <DSCV> (172.18.0.4:54321) RECV: Peer request
+{INFO} [2026-10-19 22:58:50] <DSCV> (172.18.0.4:54321) RECV: Request ignored (from connected peer)
+{INFO} [2026-10-19 22:58:54] <DSCV> (172.18.0.3) RECV: Got message (type: peer_request)
+{INFO} [2026-10-19 22:58:54] <BRDC> (172.18.0.2:54320) SEND: File list sent: ['node5.txt'] (type: file_list)
+{INFO} [2026-10-19 22:58:54] <DSCV> (172.18.0.3:54321) RECV: Peer request
+{INFO} [2026-10-19 22:58:54] <DSCV> (172.18.0.3:54321) RECV: Request ignored (from connected peer)
+{INFO} [2026-10-19 22:58:54] <BRDC> (172.18.0.4:54320) SEND: File list sent: ['node5.txt'] (type: file_list)
+{INFO} [2026-10-19 22:58:54] <RECV> (172.18.0.2:54320) RECV: Got message (type: file_list)
+{INFO} [2026-10-19 22:58:54] <BRDC> (172.18.0.5:54320) SEND: File list sent: ['node5.txt'] (type: file_list)
+{INFO} [2026-10-19 22:58:54] <RECV> (172.18.0.2:54320) RECV: File list: ['node1.txt']
+{INFO} [2026-10-19 22:58:54] <BRDC> (172.18.0.3:54320) SEND: File list sent: ['node5.txt'] (type: file_list)
+{INFO} [2026-10-19 22:58:54] <RECV> SELF: Current files known: ['node4.txt', 'node1.txt', 'node2.txt', 'node3.txt']
+{INFO} [2026-10-19 22:58:54] <RECV> (172.18.0.5:54320) RECV: Got message (type: file_list)
+{INFO} [2026-10-19 22:58:54] <RECV> (172.18.0.4:54320) RECV: Got message (type: file_list)
+{INFO} [2026-10-19 22:58:54] <RECV> (172.18.0.5:54320) RECV: File list: ['node4.txt', 'node5.txt']
+{INFO} [2026-10-19 22:58:54] <RECV> (172.18.0.4:54320) RECV: File list: ['node3.txt', 'node5.txt']
+{INFO} [2026-10-19 22:58:54] <RECV> SELF: Current files known: ['node1.txt', 'node4.txt', 'node5.txt', 'node2.txt', 'node3.txt']
+{INFO} [2026-10-19 22:58:55] <RECV> (172.18.0.3:54320) RECV: Got message (type: file_list)
+{INFO} [2026-10-19 22:58:55] <RECV> SELF: Current files known: ['node1.txt', 'node4.txt', 'node5.txt', 'node2.txt', 'node3.txt']
+{INFO} [2026-10-19 22:58:55] <DSCV> SEND: Broadcast message (type: peer_request)
+{INFO} [2026-10-19 22:58:55] <RECV> (172.18.0.3:54320) RECV: File list: ['node1.txt', 'node2.txt']
+{INFO} [2026-10-19 22:58:55] <RECV> SELF: Current files known: ['node1.txt', 'node4.txt', 'node5.txt', 'node2.txt', 'node3.txt']
+{INFO} [2026-10-19 22:58:55] <DSCV> (172.18.0.6) RECV: Got message (type: peer_request)
+{INFO} [2026-10-19 22:58:55] <DSCV> (172.18.0.6:54321) RECV: Peer request
+{INFO} [2026-10-19 22:58:55] <DSCV> (172.18.0.6:54321) RECV: Request ignored (from self)
+{INFO} [2026-10-19 22:58:57] <DSCV> (172.18.0.5) RECV: Got message (type: peer_request)
+{INFO} [2026-10-19 22:58:57] <DSCV> (172.18.0.5:54321) RECV: Peer request
+{INFO} [2026-10-19 22:58:57] <DSCV> (172.18.0.5:54321) RECV: Request ignored (from connected peer)
+{INFO} [2026-10-19 22:59:01] <DSCV> (172.18.0.2) RECV: Got message (type: peer_request)
+{INFO} [2026-10-19 22:59:01] <DSCV> (172.18.0.2:54321) RECV: Peer request
+{INFO} [2026-10-19 22:59:01] <DSCV> (172.18.0.2:54321) RECV: Request ignored (from connected peer)
+{INFO} [2026-10-19 22:59:03] <DSCV> (172.18.0.4) RECV: Got message (type: peer_request)
+{INFO} [2026-10-19 22:59:03] <DSCV> (172.18.0.4:54321) RECV: Peer request
+{INFO} [2026-10-19 22:59:03] <DSCV> (172.18.0.4:54321) RECV: Request ignored (from connected peer)
+{INFO} [2026-10-19 22:59:06] <MAIN> SELF: Shutting down servers due to keyboard interrupt
